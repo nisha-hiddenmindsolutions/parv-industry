@@ -193,11 +193,12 @@
       }
 
       if (finalResult.followUp) {
+        console.log("Follow-up received:", finalResult.followUp);
         setTimeout(() => {
           addMessage(finalResult.followUp.message, "bot");
           renderButtons(finalResult.followUp.buttons || []);
           parvMessages.scrollTop = parvMessages.scrollHeight;
-        }, finalResult.followUp.delayMs || 3000);
+        }, Number(finalResult.followUp.delayMs || 3000));
       } else {
         renderButtons(finalResult.buttons || []);
       }

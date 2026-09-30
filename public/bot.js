@@ -23,7 +23,7 @@
 .parv-status { font-size: 12px; color: #6B7280; display: flex; align-items: center; gap: 6px; margin-top: 3px; }
 .parv-dot { width: 6px; height: 6px; background: #16a34a; border-radius: 50%; box-shadow: 0 0 0 4px rgba(22,163,74,0.15); }
 .parv-close-btn { width: 32px; height: 32px; border-radius: 50%; background: #F6F3EE; border: 1px solid rgba(0,0,0,0.06); cursor: pointer; display: grid; place-items: center; }
-.parv-messages { flex: 1; padding: 24px!important; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background-color: #FDFBF7; position: relative; isolation: isolate; }
+.parv-messages { flex: 1; padding: 24px!important; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background-color: #FDFBF7; }
 .parv-msg-row { display: flex; gap: 10px; align-items: flex-end; width: 100%; animation: parv-in 0.38s cubic-bezier(0.16,1,0.3,1); }
 .parv-msg-row.user { justify-content: flex-end; }
     @keyframes parv-in { from { opacity:0; transform: translateY(10px) } to { opacity:1; transform: translateY(0) } }
@@ -53,7 +53,6 @@
 
   const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
   const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
-  let categoryCache = [];
 
   const container = document.createElement('div');
   container.id = 'parv-chat-widget-container';
@@ -87,26 +86,21 @@
     } else {
       row.innerHTML = `<div class="parv-msg user">${text}</div>`;
     }
+    // Always insert BEFORE chips, so chips stay at same place at bottom
     parvMessages.insertBefore(row, parvChips);
     parvMessages.scrollTop = parvMessages.scrollHeight;
   }
 
   function renderButtons(buttons) {
-    parvChips.innerHTML = "";
     if (!Array.isArray(buttons) || buttons.length === 0) return;
-    // Cache categories when we get them
-    if (buttons.length >= 3) {
-      const isCategory = buttons.some(b => b.label && b.label.toLowerCase().includes('box'));
-      if (isCategory || buttons.length === 5) {
-        categoryCache = buttons;
-      }
-    }
+    parvChips.innerHTML = "";
     buttons.forEach((item) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "parv-chip";
       btn.textContent = item.label;
       btn.addEventListener("click", () => {
+        // DON'T clear chips here - keep them visible
         addMessage(item.label, "user");
         sendAction(item.id);
       });
@@ -142,21 +136,17 @@
       if (action === "price_list") {
         setTimeout(() => sendAction("show_categories"), 3000);
       } else if (action === "show_categories") {
-        categoryCache = result.buttons || [];
+        // First time categories appear - render them and KEEP them
         renderButtons(result.buttons || []);
       } else {
-        // Category details - show details but KEEP categories
-        if (result.buttons && result.buttons.length > 0) {
-          renderButtons(result.buttons);
-        } else if (categoryCache.length > 0) {
-          renderButtons(categoryCache);
-        }
+        // Category details like fancy_box - DO NOT re-render categories
+        // Just show the detail message, categories stay where they were
       }
+
       parvMessages.scrollTop = parvMessages.scrollHeight;
     } catch (error) {
       console.error("n8n error:", error);
       addMessage("Sorry, something went wrong. Please try again.", "bot");
-      if (categoryCache.length > 0) renderButtons(categoryCache);
     }
   }
 
@@ -168,25 +158,14 @@
     document.getElementById("parvChips").appendChild(chip);
   });
 
-  messagesEl.addEventListener('mousemove', (e) => {
-    const rect = messagesEl.getBoundingClientRect();
-    messagesEl.style.setProperty('--mx', ((e.clientX - rect.left)/rect.width*100)+'%');
-    messagesEl.style.setProperty('--my', ((e.clientY - rect.top)/rect.height*100)+'%');
-  });
-
   let isOpen = false;
   function toggle() {
     isOpen =!isOpen;
     windowEl.classList.toggle('open', isOpen);
-    triggerEl.classList.toggle('open', isOpen);
     if (isOpen) {
-      triggerIcon.style.transform = 'rotate(180deg) scale(0)'; triggerIcon.style.opacity = '0';
-      setTimeout(() => { triggerIcon.textContent = '✕'; triggerIcon.style.transform = 'rotate(0deg) scale(1)'; triggerIcon.style.opacity = '1'; }, 150);
-      pulseEl.style.display = 'none'; setTimeout(()=> inputEl.focus(), 300);
+      triggerIcon.textContent = '✕'; pulseEl.style.display = 'none'; setTimeout(()=> inputEl.focus(), 300);
     } else {
-      triggerIcon.style.transform = 'rotate(-180deg) scale(0)'; triggerIcon.style.opacity = '0';
-      setTimeout(() => { triggerIcon.textContent = '💬'; triggerIcon.style.transform = 'rotate(0deg) scale(1)'; triggerIcon.style.opacity = '1'; }, 150);
-      pulseEl.style.display = 'block';
+      triggerIcon.textContent = '💬'; pulseEl.style.display = 'block';
     }
   }
   triggerEl.onclick = toggle;
@@ -197,7 +176,6 @@
     if (!text) return;
     inputEl.value = '';
     addMessage(text, "user");
-    parvChips.innerHTML = "";
     const typingRow = document.createElement('div');
     typingRow.className = 'parv-msg-row'; typingRow.id = 'parv-typing-row';
     typingRow.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div></div>`;
@@ -210,14 +188,13 @@
       if (typeof result === 'object') {
         addMessage(result.message || result.output || result.text || result, "bot");
         if (result.buttons && result.buttons.length > 0) renderButtons(result.buttons);
-        else if (categoryCache.length > 0) renderButtons(categoryCache);
         if (result.type === "pdf" && result.document?.url) {
           const wrap = document.createElement("div"); wrap.style.cssText = "width:100%;padding:8px;box-sizing:border-box;";
           const iframe = document.createElement("iframe"); iframe.src = result.document.url; iframe.title = result.document.name || "Document"; iframe.style.cssText = "display:block;width:100%;height:400px;border:0;border-radius:10px;background:white;";
           wrap.appendChild(iframe); parvMessages.insertBefore(wrap, parvChips);
         }
-      } else { addMessage(result, "bot"); if (categoryCache.length > 0) renderButtons(categoryCache); }
-    } catch (e) { document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong. Please try again.", "bot"); if (categoryCache.length > 0) renderButtons(categoryCache); }
+      } else { addMessage(result, "bot"); }
+    } catch (e) { document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong. Please try again.", "bot"); }
     parvMessages.scrollTop = parvMessages.scrollHeight;
   }
   sendBtn.onclick = sendMessage;

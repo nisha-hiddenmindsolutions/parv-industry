@@ -167,7 +167,13 @@
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: action, sessionId: SESSION_ID })
+        body: JSON.stringify({
+          action,
+          sessionId: SESSION_ID,
+         ...(action === "confirm_enquiry"
+           ? { enquiry: pendingEnquiry }
+            : {})
+        })
       });
       const result = await response.json();
       if (result.category && result.product && result.quantity) {

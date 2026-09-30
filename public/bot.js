@@ -53,6 +53,7 @@
 
   const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
   const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
+  let categoryCache = [];
 
   const container = document.createElement('div');
   container.id = 'parv-chat-widget-container';
@@ -92,15 +93,20 @@
 
   function renderButtons(buttons) {
     parvChips.innerHTML = "";
-    if (!Array.isArray(buttons)) return;
+    if (!Array.isArray(buttons) || buttons.length === 0) return;
+    // Cache categories when we get them
+    if (buttons.length >= 3) {
+      const isCategory = buttons.some(b => b.label && b.label.toLowerCase().includes('box'));
+      if (isCategory || buttons.length === 5) {
+        categoryCache = buttons;
+      }
+    }
     buttons.forEach((item) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "parv-chip";
       btn.textContent = item.label;
       btn.addEventListener("click", () => {
-        if (!item.id) return;
-        parvChips.innerHTML = "";
         addMessage(item.label, "user");
         sendAction(item.id);
       });
@@ -113,25 +119,14 @@
     try {
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          action: action,
-          sessionId: SESSION_ID
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: action, sessionId: SESSION_ID })
       });
-
-      if (!response.ok) {
-        throw new Error("HTTP error: " + response.status);
-      }
-
+      if (!response.ok) throw new Error("HTTP error: " + response.status);
       const result = await response.json();
       console.log("n8n response:", result);
 
-      if (result.message) {
-        addMessage(result.message, "bot");
-      }
+      if (result.message) addMessage(result.message, "bot");
 
       if (result.type === "pdf" && result.document?.url) {
         const wrapper = document.createElement("div");
@@ -145,18 +140,23 @@
       }
 
       if (action === "price_list") {
-        setTimeout(() => {
-          sendAction("show_categories");
-        }, 3000);
-      } else {
+        setTimeout(() => sendAction("show_categories"), 3000);
+      } else if (action === "show_categories") {
+        categoryCache = result.buttons || [];
         renderButtons(result.buttons || []);
+      } else {
+        // Category details - show details but KEEP categories
+        if (result.buttons && result.buttons.length > 0) {
+          renderButtons(result.buttons);
+        } else if (categoryCache.length > 0) {
+          renderButtons(categoryCache);
+        }
       }
-
       parvMessages.scrollTop = parvMessages.scrollHeight;
-
     } catch (error) {
       console.error("n8n error:", error);
       addMessage("Sorry, something went wrong. Please try again.", "bot");
+      if (categoryCache.length > 0) renderButtons(categoryCache);
     }
   }
 
@@ -209,14 +209,15 @@
       try { const d = JSON.parse(result); result = Array.isArray(d)? d[0] : d; } catch {}
       if (typeof result === 'object') {
         addMessage(result.message || result.output || result.text || result, "bot");
-        renderButtons(result.buttons || []);
+        if (result.buttons && result.buttons.length > 0) renderButtons(result.buttons);
+        else if (categoryCache.length > 0) renderButtons(categoryCache);
         if (result.type === "pdf" && result.document?.url) {
           const wrap = document.createElement("div"); wrap.style.cssText = "width:100%;padding:8px;box-sizing:border-box;";
           const iframe = document.createElement("iframe"); iframe.src = result.document.url; iframe.title = result.document.name || "Document"; iframe.style.cssText = "display:block;width:100%;height:400px;border:0;border-radius:10px;background:white;";
           wrap.appendChild(iframe); parvMessages.insertBefore(wrap, parvChips);
         }
-      } else { addMessage(result, "bot"); renderButtons([]); }
-    } catch (e) { document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong. Please try again.", "bot"); }
+      } else { addMessage(result, "bot"); if (categoryCache.length > 0) renderButtons(categoryCache); }
+    } catch (e) { document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong. Please try again.", "bot"); if (categoryCache.length > 0) renderButtons(categoryCache); }
     parvMessages.scrollTop = parvMessages.scrollHeight;
   }
   sendBtn.onclick = sendMessage;

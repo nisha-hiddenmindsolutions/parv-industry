@@ -136,7 +136,7 @@
         iframe.title = result.document.name || "PDF";
         iframe.style.cssText = "display:block;width:100%;height:400px;border:0;border-radius:10px;background:white;";
         wrapper.appendChild(iframe);
-        parvMessages.appendChild(wrapper);
+        parvMessages.insertBefore(wrapper, parvChips);
       }
 
       if (action === "price_list") {

@@ -61,12 +61,19 @@
     .parv-msg-row.user { justify-content: flex-end; }
     @keyframes parv-in { from { opacity:0; transform: translateY(10px) } to { opacity:1; transform: translateY(0) } }
     .parv-msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: #111; color: #fff; display: grid; place-items: center; font-size: 11px; flex-shrink: 0; }
-    .parv-msg { max-width: 75% !important; padding: 12px 16px !important; border-radius: 20px; font-size: 14px; line-height: 1.55; word-wrap: break-word; }
+    .parv-msg { max-width: 78% !important; padding: 12px 16px !important; border-radius: 20px; font-size: 14px; line-height: 1.55; word-wrap: break-word; }
     .parv-msg.bot { background: #fff; border: 1px solid rgba(0,0,0,0.07); color: #1F1F1F; border-bottom-left-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-right: auto; }
     .parv-msg.user { background: #111; color: #FFFEFB; border-bottom-right-radius: 6px; margin-left: auto; }
     .parv-chips { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important; width: 100% !important; padding: 0 !important; }
-    .parv-chip { background: #fff; border: 1px solid rgba(0,0,0,0.08); color: #111; padding: 12px 14px !important; border-radius: 14px; font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.22s; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .parv-chip { background: #fff; border: 1px solid rgba(0,0,0,0.08); color: #111; padding: 12px 14px !important; border-radius: 14px; font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.22s; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display:flex; align-items:center; gap:8px; justify-content:center; flex-direction:column; }
     .parv-chip:hover { background: #111; color: #fff; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.16); }
+    .parv-chip-full { grid-column: 1 / -1; }
+    .parv-pdf-card { background:#fff; border:1px solid rgba(0,0,0,0.08); border-radius:16px; padding:12px; display:flex; gap:12px; align-items:center; width:100%; margin-top:8px; cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+    .parv-pdf-card:hover { border-color:#111; transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.12); }
+    .parv-pdf-icon { width:42px; height:42px; background:#FFECEC; border-radius:10px; display:grid; place-items:center; font-size:20px; flex-shrink:0; }
+    .parv-pdf-info { flex:1; text-align:left; }
+    .parv-pdf-name { font-size:13px; font-weight:600; color:#111; line-height:1.3; }
+    .parv-pdf-action { font-size:11px; color:#16a34a; font-weight:600; margin-top:2px; }
     .parv-input-area { padding: 16px 24px 16px 24px !important; background: #FFFEFB; border-top: 1px solid rgba(0,0,0,0.07); display: flex; flex-direction: column; gap: 10px; }
     .parv-input-wrap { display: flex; align-items: center; gap: 8px; background: #F6F3EE; border: 1px solid rgba(0,0,0,0.06); border-radius: 100px; padding: 5px 6px 5px 18px !important; transition: all 0.25s; }
     .parv-input-wrap:focus-within { background: #fff; border-color: #111; box-shadow: 0 0 0 4px rgba(0,0,0,0.06); }
@@ -79,13 +86,12 @@
     .parv-dot-typing { width: 6px; height: 6px; background: #111; border-radius: 50%; animation: parv-b 1.2s infinite; }
     .parv-dot-typing:nth-child(2){animation-delay:.15s} .parv-dot-typing:nth-child(3){animation-delay:.3s}
     @keyframes parv-b { 0%,80%,100%{transform:translateY(0);opacity:.5} 40%{transform:translateY(-5px);opacity:1} }
-    /* Toggle icon animation */
     .parv-trigger-icon { display: grid; place-items: center; transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.25s; }
     .parv-trigger.open .parv-trigger-icon { transform: rotate(180deg) scale(0.9); }
   `;
   document.head.appendChild(style);
 
-  const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
+  const WEBHOOK_URL = document.currentScript?.getAttribute('data-webhook') || 'https://n8n.propwiseai.in/webhook/website%20chatbot';
   const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
   const container = document.createElement('div');
   container.id = 'parv-chat-widget-container';
@@ -98,9 +104,7 @@
         </div>
         <button class="parv-close-btn" id="parvCloseBtn">✕</button>
       </div>
-      <div class="parv-messages" id="parvMessages">
-        <div class="parv-chips" id="parvChips"></div>
-      </div>
+      <div class="parv-messages" id="parvMessages"></div>
       <div class="parv-input-area">
         <div class="parv-input-wrap">
           <input type="text" class="parv-input" id="parvInput" placeholder="Ask about spices, bulk orders..." autocomplete="off" />
@@ -126,15 +130,6 @@
   const sendBtn = document.getElementById('parvSendBtn');
   const inputEl = document.getElementById('parvInput');
   const messagesEl = document.getElementById('parvMessages');
-  const chipsEl = document.getElementById('parvChips');
-
-  ["🌶 Spices List", "🥥 Coconut Water", "🍜 Noodles", "📦 Bulk Quote"].forEach(text => {
-    const chip = document.createElement('button');
-    chip.className = 'parv-chip';
-    chip.textContent = text;
-    chip.onclick = () => { inputEl.value = text; sendMessage(); };
-    chipsEl.appendChild(chip);
-  });
 
   messagesEl.addEventListener('mousemove', (e) => {
     const rect = messagesEl.getBoundingClientRect();
@@ -147,8 +142,6 @@
     isOpen = !isOpen;
     windowEl.classList.toggle('open', isOpen);
     triggerEl.classList.toggle('open', isOpen);
-    
-    // Toggle effect for button
     if (isOpen) {
       triggerIcon.style.transform = 'rotate(180deg) scale(0)';
       triggerIcon.style.opacity = '0';
@@ -170,37 +163,138 @@
       pulseEl.style.display = 'block';
     }
   }
-
   triggerEl.onclick = toggle;
   closeBtn.onclick = toggle;
 
-  async function sendMessage() {
-    const text = inputEl.value.trim();
-    if (!text) return;
-    inputEl.value = '';
-    chipsEl.style.display = 'none';
+  function addBotMessage(text, pdfData) {
+    const row = document.createElement('div');
+    row.className = 'parv-msg-row';
+    let pdfHtml = '';
+    if (pdfData && pdfData.document && pdfData.document.url) {
+      pdfHtml = `
+        <div class="parv-pdf-card" onclick="window.open('${pdfData.document.url}','_blank')">
+          <div class="parv-pdf-icon">📄</div>
+          <div class="parv-pdf-info">
+            <div class="parv-pdf-name">${pdfData.document.name || 'Document'}</div>
+            <div class="parv-pdf-action">👁 View PDF • Tap to open</div>
+          </div>
+          <div style="font-size:16px">↗</div>
+        </div>
+      `;
+    }
+    row.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-msg bot">${text.replace(/\n/g,'<br>')}${pdfHtml}</div>`;
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function addUserMessage(text) {
     const row = document.createElement('div');
     row.className = 'parv-msg-row user';
     row.innerHTML = `<div class="parv-msg user">${text}</div>`;
     messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function addChoiceButtons() {
+    const row = document.createElement('div');
+    row.className = 'parv-msg-row';
+    row.id = 'parvWelcomeBtns';
+    row.innerHTML = `<div class="parv-msg-avatar">P</div>
+      <div style="display:grid; grid-template-columns:1fr; gap:10px; width:75%;">
+        <button class="parv-chip parv-chip-full" data-action="catalogue"><span>📄</span><span>Show Catalogue</span></button>
+        <button class="parv-chip parv-chip-full" data-action="price_list"><span>📄</span><span>Show Product Price List</span></button>
+      </div>`;
+    messagesEl.appendChild(row);
+    row.querySelectorAll('[data-action]').forEach(btn=>{
+      btn.onclick = ()=> {
+        const act = btn.getAttribute('data-action');
+        const label = btn.innerText;
+        row.remove();
+        sendMessage(act, label);
+      };
+    });
+  }
+
+  async function sendMessage(action, labelText) {
+    const displayText = labelText || action;
+    const payloadAction = action;
+    
+    addUserMessage(displayText);
+
     const typingRow = document.createElement('div');
     typingRow.className = 'parv-msg-row';
     typingRow.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div></div>`;
     messagesEl.appendChild(typingRow);
     messagesEl.scrollTop = messagesEl.scrollHeight;
+
     try {
-      const res = await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatInput: text, message: text, payload: { text }, sessionId: SESSION_ID }) });
+      const res = await fetch(WEBHOOK_URL, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ 
+          chatInput: payloadAction, 
+          action: payloadAction,
+          message: payloadAction, 
+          payload: { text: payloadAction }, 
+          sessionId: SESSION_ID,
+          webhookUrl: WEBHOOK_URL
+        }) 
+      });
       typingRow.remove();
-      let reply = await res.text();
-      try { const d = JSON.parse(reply); reply = Array.isArray(d) ? (d[0].output||d[0].text||'') : (d.output||d.text||d.message||reply); } catch {}
-      const botRow = document.createElement('div');
-      botRow.className = 'parv-msg-row';
-      botRow.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-msg bot">${reply.replace(/\\n/g,'<br>')}</div>`;
-      messagesEl.appendChild(botRow);
-    } catch (e) { typingRow.remove(); }
+      let data;
+      const txt = await res.text();
+      try { 
+        data = JSON.parse(txt); 
+        if (Array.isArray(data)) data = data[0];
+      } catch { 
+        data = { message: txt }; 
+      }
+
+      // Handle n8n PDF response: {success, type: "pdf", document: {name, url}, message}
+      if (data.type === 'pdf' && data.document) {
+        addBotMessage(data.message || 'Here is your document.', data);
+        // Add back to menu button
+        setTimeout(()=>{
+          const backRow = document.createElement('div');
+          backRow.className = 'parv-msg-row';
+          backRow.innerHTML = `<div class="parv-msg-avatar">P</div><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; width:75%;">
+            <button class="parv-chip" data-action="catalogue">📄 Catalogue</button>
+            <button class="parv-chip" data-action="price_list">💰 Price List</button>
+          </div>`;
+          messagesEl.appendChild(backRow);
+          backRow.querySelectorAll('[data-action]').forEach(b=>{
+            b.onclick = ()=> { backRow.remove(); sendMessage(b.getAttribute('data-action'), b.innerText); };
+          });
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }, 500);
+      } else {
+        // Normal text reply
+        const reply = data.output || data.text || data.message || txt || "I didn't get that.";
+        addBotMessage(reply, null);
+      }
+
+    } catch (e) { 
+      typingRow.remove(); 
+      addBotMessage("Connection error. Please try again.", null);
+      console.error(e);
+    }
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
-  sendBtn.onclick = sendMessage;
-  inputEl.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
-  setTimeout(toggle, 700);
+
+  // Initial Welcome like in image_452d74.png
+  setTimeout(()=>{
+    addBotMessage("Hello! 👋 Welcome to Parv Industry.\nWe are happy to help you with spices, noodles, and 100% pure coconut water. Please choose an option to continue.", null);
+    addChoiceButtons();
+  }, 300);
+
+  sendBtn.onclick = ()=> {
+    const t = inputEl.value.trim();
+    if (!t) return;
+    inputEl.value = '';
+    document.getElementById('parvWelcomeBtns')?.remove();
+    sendMessage(t, t);
+  };
+  inputEl.onkeydown = (e) => { if (e.key === 'Enter') sendBtn.onclick(); };
+  setTimeout(toggle, 900);
+  window.ParvChat = { open: ()=>{ if(!isOpen) toggle(); }, close: ()=>{ if(isOpen) toggle(); } };
 })();

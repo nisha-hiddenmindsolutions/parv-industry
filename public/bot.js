@@ -145,8 +145,6 @@
       }
 
       if (action === "price_list") {
-        parvChips.innerHTML = "";
-
         setTimeout(() => {
           sendAction("show_categories");
         }, 3000);

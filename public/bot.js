@@ -48,6 +48,7 @@
 
   const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
   const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
+  let pendingEnquiry = null;
   let categoryMenuShown = false;
 
   const container = document.createElement('div');

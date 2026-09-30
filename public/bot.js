@@ -1,179 +1,206 @@
-
-(function(){
-  var s=document.currentScript;
-  var HOOK=s&&s.dataset.webhook?s.dataset.webhook:'https://n8n.propwiseai.in/webhook/website%20chatbot';
-  var botName='Parv Industries';
-  if(document.getElementById('parv-finder-root')) return;
-
-  // PERSISTENT session - CRITICAL FIX
-  var SID_KEY='parv_sid_desktop_v5';
-  var SESSION_ID=localStorage.getItem(SID_KEY);
-  if(!SESSION_ID){ SESSION_ID='parv_desktop_'+Date.now(); localStorage.setItem(SID_KEY, SESSION_ID); }
-
-  var css=document.createElement('style');
-  css.textContent=`
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    #parv-finder-root{position:fixed;inset:0;z-index:9999999;background:#fcfcff;font-family:Inter,sans-serif;display:flex;overflow:hidden}
-    #parv-finder-root *{box-sizing:border-box;font-family:Inter,sans-serif}
-    .pf-sidebar{width:280px;background:#fff;border-right:1px solid #e8e8ef;display:flex;flex-direction:column;flex-shrink:0;transition:all .3s}
-    .pf-sidebar.collapsed{width:0;border-right:none;transform:translateX(-100%);opacity:0;overflow:hidden}
-    .pf-side-top{padding:18px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f5}
-    .pf-logo{font-weight:700;font-size:16px;color:#4f46e5}
-    .pf-toggle{width:32px;height:32px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;display:grid;place-items:center;cursor:pointer}
-    .pf-new-btn{margin:16px;background:#4f46e5;color:#fff;border:none;border-radius:12px;padding:12px 16px;font-weight:600;font-size:14px;cursor:pointer}
-    .pf-recent-label{font-size:11px;font-weight:600;color:#9ca3af;letter-spacing:.08em;padding:16px 16px 8px}
-    .pf-recent-item{margin:4px 12px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent}
-    .pf-recent-item.active{background:#eef2ff;border-color:#c7d2fe}
-    .pf-recent-item:hover{background:#f5f3ff}
-    .pf-recent-title{font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .pf-recent-sub{font-size:11px;color:#6b7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .pf-side-bottom{margin-top:auto;padding:12px 16px;border-top:1px solid #f0f0f5;display:flex;align-items:center;gap:10px}
-    .pf-avatar{width:32px;height:32px;border-radius:50%;background:#4f46e5;color:#fff;display:grid;place-items:center;font-weight:600;font-size:12px}
-    .pf-main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:radial-gradient(1200px 600px at 50% -10%, #eef2ff 0%, #fcfcff 50%, #fff 100%)}
-    .pf-topbar{height:56px;background:#fff;border-bottom:1px solid #eeeefa;display:flex;align-items:center;gap:12px;padding:0 16px;flex-shrink:0}
-    .pf-hamburger{width:36px;height:36px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;display:grid;place-items:center;cursor:pointer}
-    .pf-hamburger.hidden{display:none}
-    .pf-center{flex:1;overflow:auto;display:flex;flex-direction:column;align-items:center;padding:20px}
-    .pf-heading{font-size:40px;font-weight:800;line-height:1.15;text-align:center;max-width:640px;color:#0f172a;margin-top:40px}
-    .pf-sub{margin-top:12px;font-size:15px;color:#64748b;text-align:center;max-width:560px}
-    .pf-search-wrap{width:100%;max-width:680px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:8px 8px 8px 16px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.06)}
-    .pf-search-wrap:focus-within{border-color:#4f46e5;box-shadow:0 0 0 4px rgba(79,70,229,.12)}
-    .pf-icon-btn{width:36px;height:36px;border-radius:10px;background:#f8fafc;border:none;display:grid;place-items:center;cursor:pointer;color:#64748b;flex-shrink:0}
-    .pf-input{flex:1;border:none;outline:none;font-size:14px;color:#0f172a;background:transparent}
-    .pf-send{background:#4f46e5;width:40px;height:40px;border-radius:12px;border:none;color:#fff;display:grid;place-items:center;cursor:pointer}
-    .pf-chips-grid{margin-top:20px;width:100%;max-width:680px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .pf-chip-card{border-radius:14px;padding:16px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid rgba(0,0,0,.04);text-align:left}
-    .pf-chip-pink{background:#fdf2ff}.pf-chip-blue{background:#eff6ff}.pf-chip-yellow{background:#fefce8}.pf-chip-red{background:#fef2f2}
-    .pf-chat-area{width:100%;max-width:760px;margin-top:20px;display:flex;flex-direction:column;gap:14px;padding-bottom:20px;display:none}
-    .pf-msg{padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.6;max-width:82%;white-space:pre-wrap;word-wrap:break-word}
-    .pf-msg.user{background:#111827;color:#fff;align-self:flex-end;border-bottom-right-radius:6px;margin-left:auto}
-    .pf-msg.bot{background:#fff;border:1px solid #e5e7eb;color:#111827;align-self:flex-start;border-bottom-left-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-    .pf-typing{display:flex;gap:4px;padding:14px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:18px;width:fit-content}
-    .pf-dot{width:6px;height:6px;background:#111827;border-radius:50%;animation:pf-b 1.2s infinite}
-    .pf-dot:nth-child(2){animation-delay:.15s}.pf-dot:nth-child(3){animation-delay:.3s}
-    @keyframes pf-b{0%,80%,100%{transform:translateY(0);opacity:.5}40%{transform:translateY(-5px);opacity:1}}
-    .pf-bottom-bar{padding:16px 24px;background:rgba(252,252,255,.95);backdrop-filter:blur(10px);border-top:1px solid #eeeefa;display:flex;justify-content:center;flex-shrink:0}
-    .pf-wa{position:fixed;right:20px;bottom:90px;width:52px;height:52px;border-radius:50%;background:#25d366;color:#fff;border:none;display:grid;place-items:center;box-shadow:0 8px 24px rgba(37,211,102,.4);cursor:pointer;font-weight:700}
-    @media(max-width:900px){.pf-sidebar{position:absolute;z-index:20;height:100%;box-shadow:4px 0 24px rgba(0,0,0,.1)}.pf-sidebar.collapsed{width:280px;transform:translateX(-100%);opacity:1}}
-  `;
-  document.head.appendChild(css);
-
-  var root=document.createElement('div'); root.id='parv-finder-root';
-  root.innerHTML=`
-    <div class="pf-sidebar" id="pfSidebar">
-      <div class="pf-side-top"><div class="pf-logo">Parv Industries</div><button class="pf-toggle" id="pfCloseSidebar">‹</button></div>
-      <button class="pf-new-btn" id="pfNewBtn">+ New Search</button>
-      <div class="pf-recent-label">RECENT SEARCHES</div>
-      <div id="pfRecentList" style="flex:1;overflow:auto">
-        <div class="pf-recent-item active" data-q="Spices List"><div class="pf-recent-title">Spices List</div><div class="pf-recent-sub">Looking for 25kg packs, 1000kg MOQ</div></div>
-        <div class="pf-recent-item" data-q="Coconut Water"><div class="pf-recent-title">Coconut Water Export</div><div class="pf-recent-sub">200ml x 48 pieces inquiry</div></div>
-        <div class="pf-recent-item" data-q="Noodles"><div class="pf-recent-title">Noodles Distributor</div><div class="pf-recent-sub">45g x 96, ₹500 carton</div></div>
-      </div>
-      <div class="pf-side-bottom"><div class="pf-avatar">U</div><div><div style="font-size:13px;font-weight:600">User</div><div style="font-size:11px;color:#6b7280">Free</div></div></div>
-    </div>
-    <div class="pf-main">
-      <div class="pf-topbar">
-        <button class="pf-hamburger hidden" id="pfOpenSidebar">☰</button>
-        <div style="font-weight:600;font-size:14px">Parv Industries ▾</div>
-        <div style="flex:1"></div>
-        <button style="width:36px;height:36px;border-radius:10px;background:#4f46e5;color:#fff;border:none;display:grid;place-items:center;cursor:pointer" id="pfCloseRoot">✕</button>
-      </div>
-      <div class="pf-center" id="pfCenter">
-        <div id="pfHero" style="width:100%;display:flex;flex-direction:column;align-items:center">
-          <div class="pf-heading">What type of product would you like to explore?</div>
-          <div class="pf-sub">Search by product, quantity, price, or let AI help you find your perfect match</div>
-          <div style="height:24px"></div>
-          <div class="pf-chips-grid" id="pfChipsGrid">
-            <button class="pf-chip-card pf-chip-pink" data-q="Spices List">🌶 Spices List</button>
-            <button class="pf-chip-card pf-chip-blue" data-q="Coconut Water">🥥 Coconut Water</button>
-            <button class="pf-chip-card pf-chip-yellow" data-q="Noodles">🍜 Noodles</button>
-            <button class="pf-chip-card pf-chip-red" data-q="Bulk Quote">📦 Bulk Quote</button>
-          </div>
-        </div>
-        <div class="pf-chat-area" id="pfChatArea"></div>
-      </div>
-      <div class="pf-bottom-bar">
-        <div class="pf-search-wrap">
-          <button class="pf-icon-btn">📎</button>
-          <button class="pf-icon-btn">⚙</button>
-          <input class="pf-input" id="pfInput" placeholder="Ask about spices, bulk orders..." autocomplete="off"/>
-          <button class="pf-icon-btn">🎤</button>
-          <button class="pf-send" id="pfSendBtn">➤</button>
-        </div>
-      </div>
-      <button class="pf-wa" onclick="window.open('https://wa.me/919999999999','_blank')">W</button>
-    </div>
-  `;
-  document.body.appendChild(root);
-
-  var sidebar=document.getElementById('pfSidebar');
-  var openBtn=document.getElementById('pfOpenSidebar');
-  var closeBtn=document.getElementById('pfCloseSidebar');
-  function setSidebar(open){ if(open){ sidebar.classList.remove('collapsed'); openBtn.classList.add('hidden'); } else { sidebar.classList.add('collapsed'); openBtn.classList.remove('hidden'); } }
-  closeBtn.onclick=function(){ setSidebar(false); };
-  openBtn.onclick=function(){ setSidebar(true); };
-
-  var input=document.getElementById('pfInput');
-  var sendBtn=document.getElementById('pfSendBtn');
-  var chatArea=document.getElementById('pfChatArea');
-  var hero=document.getElementById('pfHero');
-  var recentList=document.getElementById('pfRecentList');
-  var center=document.getElementById('pfCenter');
-
-  function newSearch(){
-    hero.style.display='flex'; chatArea.style.display='none'; chatArea.innerHTML=''; input.value=''; input.focus();
-    document.querySelectorAll('.pf-recent-item').forEach(function(i){i.classList.remove('active')});
-    // NEW SEARCH = new session (like old chatbot does)
-    SESSION_ID='parv_desktop_'+Date.now();
-    localStorage.setItem(SID_KEY, SESSION_ID);
-    console.log('New session:', SESSION_ID);
-  }
-  document.getElementById('pfNewBtn').onclick=newSearch;
-  document.getElementById('pfCloseRoot').onclick=function(){ root.remove(); css.remove(); };
-  recentList.onclick=function(e){ var item=e.target.closest('.pf-recent-item'); if(!item) return; document.querySelectorAll('.pf-recent-item').forEach(function(i){i.classList.remove('active')}); item.classList.add('active'); doSearch(item.dataset.q); };
-  document.getElementById('pfChipsGrid').onclick=function(e){ var b=e.target.closest('button'); if(!b) return; doSearch(b.dataset.q); };
-
-  function doSearch(text){
-    if(!text.trim()) return;
-    hero.style.display='none';
-    chatArea.style.display='flex';
-    var userDiv=document.createElement('div'); userDiv.className='pf-msg user'; userDiv.textContent=text; chatArea.appendChild(userDiv);
-    input.value='';
-    var typing=document.createElement('div'); typing.className='pf-typing'; typing.innerHTML='<div class="pf-dot"></div><div class="pf-dot"></div><div class="pf-dot"></div>'; chatArea.appendChild(typing);
-    center.scrollTop=center.scrollHeight;
-
-    var payload = {
-      chatInput: text,
-      message: text,
-      text: text,
-      sessionId: SESSION_ID,
-      botName: botName
-    };
-    console.log('Sending to n8n:', payload);
-
-    fetch(HOOK, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    }).then(function(r){ return r.text(); }).then(function(reply){
-      console.log('n8n raw reply:', reply);
-      try{
-        var d=JSON.parse(reply);
-        if(Array.isArray(d) && d[0]){ reply = d[0].output || d[0].text || d[0].message || d[0].response || reply; }
-        else { reply = d.output || d.text || d.message || d.response || d.reply || reply; }
-      }catch(e){}
-      if(!reply || reply.trim()==='' || reply==='{}' || reply==='[]'){ reply='Thanks for reaching out! Our team will get back to you shortly.'; }
-      typing.remove();
-      var bot=document.createElement('div'); bot.className='pf-msg bot'; bot.innerHTML=reply.replace(/\n/g,'<br>'); chatArea.appendChild(bot);
-      var newItem=document.createElement('div'); newItem.className='pf-recent-item'; newItem.dataset.q=text; newItem.innerHTML='<div class="pf-recent-title">'+text.slice(0,24)+'</div><div class="pf-recent-sub">'+reply.slice(0,38).replace(/<[^>]*>/g,'')+'...</div>'; recentList.prepend(newItem);
-      center.scrollTop=center.scrollHeight; input.focus();
-    }).catch(function(err){
-      typing.remove();
-      var errDiv=document.createElement('div'); errDiv.className='pf-msg bot'; errDiv.textContent='Cannot reach server: '+err.message+'. Make sure n8n workflow is ACTIVE.'; chatArea.appendChild(errDiv);
-    });
+(function () {
+  if (document.getElementById('parv-chat-widget-container')) {
+    document.getElementById('parv-chat-widget-container').remove();
+    document.getElementById('parv-chatbot-styles')?.remove();
   }
 
-  sendBtn.onclick=function(){ doSearch(input.value); };
-  input.onkeydown=function(e){ if(e.key==='Enter'){ doSearch(input.value); } };
-  input.focus();
+  const style = document.createElement('style');
+  style.id = 'parv-chatbot-styles';
+  style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Outfit:wght@400;500;600&display=swap');
+    #parv-chat-widget-container, #parv-chat-widget-container * { box-sizing: border-box !important; font-family: 'Outfit', sans-serif; margin: 0; padding: 0; }
+    #parv-chat-widget-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999999; display: flex; flex-direction: column; align-items: flex-end; }
+    .parv-trigger-wrap { position: relative; }
+    .parv-trigger-pulse { position: absolute; inset: 0; border-radius: 50%; background: #111; animation: parv-pulse 2.5s infinite; }
+    @keyframes parv-pulse { 0% { transform: scale(1); opacity: .3 } 100% { transform: scale(1.9); opacity: 0 } }
+    .parv-trigger {
+      width: 62px; height: 62px; border-radius: 50%;
+      background: radial-gradient(120% 120% at 30% 20%, #2A2A2A 0%, #111 100%);
+      color: #fff; border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.22); cursor: pointer; display: grid; place-items: center;
+      transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
+    }
+    .parv-window {
+      width: 392px; max-width: calc(100vw - 32px); height: 640px; max-height: calc(100vh - 100px);
+      background: #FFFEFB; border: 1px solid rgba(0,0,0,0.08); border-radius: 28px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.16); display: flex; flex-direction: column;
+      overflow: hidden; margin-bottom: 18px; opacity: 0; transform: translateY(16px) scale(0.97);
+      pointer-events: none; transition: all 0.48s cubic-bezier(0.16,1,0.3,1); transform-origin: bottom right;
+    }
+    .parv-window.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+    .parv-header { padding: 16px 24px !important; background: #FFFEFB; border-bottom: 1px solid rgba(0,0,0,0.07); display: flex; align-items: center; justify-content: space-between; }
+    .parv-header-left { display: flex; align-items: center; gap: 12px; }
+    .parv-avatar { width: 40px; height: 40px; border-radius: 50%; background: #111; color: #fff; display: grid; place-items: center; font-family: 'Fraunces', serif; font-weight: 600; }
+    .parv-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 16px; color: #111; }
+    .parv-status { font-size: 12px; color: #6B7280; display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+    .parv-dot { width: 6px; height: 6px; background: #16a34a; border-radius: 50%; box-shadow: 0 0 0 4px rgba(22,163,74,0.15); }
+    .parv-close-btn { width: 32px; height: 32px; border-radius: 50%; background: #F6F3EE; border: 1px solid rgba(0,0,0,0.06); cursor: pointer; display: grid; place-items: center; }
+    .parv-messages {
+      flex: 1; 
+      padding-left: 24px !important; 
+      padding-right: 24px !important;
+      padding-top: 24px !important;
+      padding-bottom: 24px !important;
+      overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
+      background-color: #FDFBF7; position: relative; isolation: isolate;
+    }
+    .parv-messages::before {
+      content: ''; position: absolute; inset: 0; z-index: -2;
+      background-image: 
+        linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+      background-size: 28px 28px; opacity: 0.6;
+    }
+    .parv-messages::after {
+      content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+      background: radial-gradient(500px circle at var(--mx, 50%) var(--my, 50%), rgba(17,17,17,0.06), transparent 60%);
+      transition: opacity 0.4s ease;
+    }
+    .parv-messages:hover::after { opacity: 1; }
+    .parv-msg-row { display: flex; gap: 10px; align-items: flex-end; width: 100%; animation: parv-in 0.38s cubic-bezier(0.16,1,0.3,1); }
+    .parv-msg-row.user { justify-content: flex-end; }
+    @keyframes parv-in { from { opacity:0; transform: translateY(10px) } to { opacity:1; transform: translateY(0) } }
+    .parv-msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: #111; color: #fff; display: grid; place-items: center; font-size: 11px; flex-shrink: 0; }
+    .parv-msg { max-width: 75% !important; padding: 12px 16px !important; border-radius: 20px; font-size: 14px; line-height: 1.55; word-wrap: break-word; }
+    .parv-msg.bot { background: #fff; border: 1px solid rgba(0,0,0,0.07); color: #1F1F1F; border-bottom-left-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-right: auto; }
+    .parv-msg.user { background: #111; color: #FFFEFB; border-bottom-right-radius: 6px; margin-left: auto; }
+    .parv-chips { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important; width: 100% !important; padding: 0 !important; }
+    .parv-chip { background: #fff; border: 1px solid rgba(0,0,0,0.08); color: #111; padding: 12px 14px !important; border-radius: 14px; font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.22s; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .parv-chip:hover { background: #111; color: #fff; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,0.16); }
+    .parv-input-area { padding: 16px 24px 16px 24px !important; background: #FFFEFB; border-top: 1px solid rgba(0,0,0,0.07); display: flex; flex-direction: column; gap: 10px; }
+    .parv-input-wrap { display: flex; align-items: center; gap: 8px; background: #F6F3EE; border: 1px solid rgba(0,0,0,0.06); border-radius: 100px; padding: 5px 6px 5px 18px !important; transition: all 0.25s; }
+    .parv-input-wrap:focus-within { background: #fff; border-color: #111; box-shadow: 0 0 0 4px rgba(0,0,0,0.06); }
+    .parv-input { flex: 1; background: transparent; border: none; outline: none; font-size: 14px; color: #111; padding: 9px 0; }
+    .parv-send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; background: #111; color: #fff; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.2s; }
+    .parv-send-btn:hover { transform: scale(1.08); }
+    .parv-foot { text-align: center; font-size: 11px; color: #9CA3AF; }
+    .parv-foot strong { color: #111; }
+    .parv-typing { display: flex; gap: 4px; padding: 14px 16px; background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 18px; border-bottom-left-radius: 6px; }
+    .parv-dot-typing { width: 6px; height: 6px; background: #111; border-radius: 50%; animation: parv-b 1.2s infinite; }
+    .parv-dot-typing:nth-child(2){animation-delay:.15s} .parv-dot-typing:nth-child(3){animation-delay:.3s}
+    @keyframes parv-b { 0%,80%,100%{transform:translateY(0);opacity:.5} 40%{transform:translateY(-5px);opacity:1} }
+    /* Toggle icon animation */
+    .parv-trigger-icon { display: grid; place-items: center; transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.25s; }
+    .parv-trigger.open .parv-trigger-icon { transform: rotate(180deg) scale(0.9); }
+  `;
+  document.head.appendChild(style);
+
+  const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
+  const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
+  const container = document.createElement('div');
+  container.id = 'parv-chat-widget-container';
+  container.innerHTML = `
+    <div class="parv-window" id="parvWindow">
+      <div class="parv-header">
+        <div class="parv-header-left">
+          <div class="parv-avatar">P</div>
+          <div><div class="parv-title">Parv Industries</div><div class="parv-status"><span class="parv-dot"></span> Online</div></div>
+        </div>
+        <button class="parv-close-btn" id="parvCloseBtn">✕</button>
+      </div>
+      <div class="parv-messages" id="parvMessages">
+        <div class="parv-chips" id="parvChips"></div>
+      </div>
+      <div class="parv-input-area">
+        <div class="parv-input-wrap">
+          <input type="text" class="parv-input" id="parvInput" placeholder="Ask about spices, bulk orders..." autocomplete="off" />
+          <button class="parv-send-btn" id="parvSendBtn">➤</button>
+        </div>
+        <div class="parv-foot">Built for business • <strong>Parv Industries</strong></div>
+      </div>
+    </div>
+    <div class="parv-trigger-wrap">
+      <div class="parv-trigger-pulse" id="parvPulse"></div>
+      <button class="parv-trigger" id="parvTrigger">
+        <span class="parv-trigger-icon" id="parvTriggerIcon">💬</span>
+      </button>
+    </div>
+  `;
+  document.body.appendChild(container);
+
+  const windowEl = document.getElementById('parvWindow');
+  const triggerEl = document.getElementById('parvTrigger');
+  const triggerIcon = document.getElementById('parvTriggerIcon');
+  const pulseEl = document.getElementById('parvPulse');
+  const closeBtn = document.getElementById('parvCloseBtn');
+  const sendBtn = document.getElementById('parvSendBtn');
+  const inputEl = document.getElementById('parvInput');
+  const messagesEl = document.getElementById('parvMessages');
+  const chipsEl = document.getElementById('parvChips');
+
+  ["🌶 Spices List", "🥥 Coconut Water", "🍜 Noodles", "📦 Bulk Quote"].forEach(text => {
+    const chip = document.createElement('button');
+    chip.className = 'parv-chip';
+    chip.textContent = text;
+    chip.onclick = () => { inputEl.value = text; sendMessage(); };
+    chipsEl.appendChild(chip);
+  });
+
+  messagesEl.addEventListener('mousemove', (e) => {
+    const rect = messagesEl.getBoundingClientRect();
+    messagesEl.style.setProperty('--mx', ((e.clientX - rect.left)/rect.width*100)+'%');
+    messagesEl.style.setProperty('--my', ((e.clientY - rect.top)/rect.height*100)+'%');
+  });
+
+  let isOpen = false;
+  function toggle() {
+    isOpen = !isOpen;
+    windowEl.classList.toggle('open', isOpen);
+    triggerEl.classList.toggle('open', isOpen);
+    
+    // Toggle effect for button
+    if (isOpen) {
+      triggerIcon.style.transform = 'rotate(180deg) scale(0)';
+      triggerIcon.style.opacity = '0';
+      setTimeout(() => {
+        triggerIcon.textContent = '✕';
+        triggerIcon.style.transform = 'rotate(0deg) scale(1)';
+        triggerIcon.style.opacity = '1';
+      }, 150);
+      pulseEl.style.display = 'none';
+      setTimeout(()=> inputEl.focus(), 300);
+    } else {
+      triggerIcon.style.transform = 'rotate(-180deg) scale(0)';
+      triggerIcon.style.opacity = '0';
+      setTimeout(() => {
+        triggerIcon.textContent = '💬';
+        triggerIcon.style.transform = 'rotate(0deg) scale(1)';
+        triggerIcon.style.opacity = '1';
+      }, 150);
+      pulseEl.style.display = 'block';
+    }
+  }
+
+  triggerEl.onclick = toggle;
+  closeBtn.onclick = toggle;
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.value = '';
+    chipsEl.style.display = 'none';
+    const row = document.createElement('div');
+    row.className = 'parv-msg-row user';
+    row.innerHTML = `<div class="parv-msg user">${text}</div>`;
+    messagesEl.appendChild(row);
+    const typingRow = document.createElement('div');
+    typingRow.className = 'parv-msg-row';
+    typingRow.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div></div>`;
+    messagesEl.appendChild(typingRow);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    try {
+      const res = await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatInput: text, message: text, payload: { text }, sessionId: SESSION_ID }) });
+      typingRow.remove();
+      let reply = await res.text();
+      try { const d = JSON.parse(reply); reply = Array.isArray(d) ? (d[0].output||d[0].text||'') : (d.output||d.text||d.message||reply); } catch {}
+      const botRow = document.createElement('div');
+      botRow.className = 'parv-msg-row';
+      botRow.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-msg bot">${reply.replace(/\\n/g,'<br>')}</div>`;
+      messagesEl.appendChild(botRow);
+    } catch (e) { typingRow.remove(); }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  sendBtn.onclick = sendMessage;
+  inputEl.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+  setTimeout(toggle, 700);
 })();

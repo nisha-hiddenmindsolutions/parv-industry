@@ -105,7 +105,6 @@
       });
       parvChips.appendChild(btn);
     });
-    // Category UP only - move it to after the prompt message
     parvMessages.appendChild(parvChips);
     categoryMenuShown = true;
   }
@@ -132,7 +131,6 @@
       };
       parvChips.appendChild(btn);
     });
-    // Buttons BELOW welcome/message
     parvMessages.appendChild(parvChips);
   }
 
@@ -170,8 +168,8 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-         ...(action === "confirm_enquiry"
-           ? { enquiry: pendingEnquiry }
+        ...(action === "confirm_enquiry"
+          ? { enquiry: pendingEnquiry }
             : {})
         })
       });
@@ -202,8 +200,6 @@
       } else if (action === "show_categories") {
         renderCategoryMenu(result.buttons || []);
       } else {
-        // Customer selected any category -> output comes BELOW category only
-        // Do NOT re-render category, keep it UP only
       }
     } catch (e) {
       addMessage("Sorry, something went wrong. Please try again.", "bot");
@@ -239,6 +235,13 @@
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
       if (typeof result==='object'){
         addMessage(result.message||result.output||result.text||result,"bot");
+        if (result.category && result.product && result.quantity) {
+          pendingEnquiry = {
+            category: result.category,
+            product: result.product,
+            quantity: result.quantity
+          };
+        }
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
         }

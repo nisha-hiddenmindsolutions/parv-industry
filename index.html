@@ -1,10 +1,114 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Parv Industry</title></head>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parv Industry - WhatsApp Chatbot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{margin:0;font-family:'Outfit',sans-serif;background:#FFFEFB}
+    .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;background:#FFF8E7}
+    .hero h1{font-size:42px;color:#8B1E1E;margin:0}
+    .hero p{color:#555;max-width:600px}
+    .btn{background:#8B1E1E;color:#fff;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;margin-top:12px}
+  </style>
+</head>
 <body>
-  <h2 style="font-family:sans-serif;text-align:center;margin-top:50px">Parv Industry - Website Live. Click green chat button.</h2>
+  <div class="hero">
+    <h1>Parv Industry</h1>
+    <p>WhatsApp Product Enquiry Chatbot - Click green button bottom-right. If you see nothing, press F12 and check console.</p>
+    <button class="btn" onclick="window.ParvChat && window.ParvChat.open()">Open Chatbot Test</button>
+  </div>
 
-  <!-- 4 LINE CODE - JS IN PUBLIC FOLDER -->
-  <script src="/public/parv-whatsapp-widget.js" data-webhook="https://n8n.propwiseai.in/webhook/website%20chatbot"></script>
+<!-- CHATBOT WIDGET START - PASTE EVERYTHING BELOW -->
+<script>
+/* Parv WhatsApp Widget - SELF CONTAINED VERSION - NO EXTERNAL FILE NEEDED */
+(function(){
+const WEBHOOK_URL = "https://n8n.propwiseai.in/webhook/website%20chatbot";
+const SESSION_KEY = "parv_wa_session";
+function getSid(){ let id=localStorage.getItem(SESSION_KEY); if(!id){ id='sess_'+Date.now(); localStorage.setItem(SESSION_KEY,id);} return id; }
+const css = `#parv-root{position:fixed;bottom:20px;right:20px;z-index:9999999;font-family:'Outfit',sans-serif}
+#parv-btn{width:60px;height:60px;border-radius:50%;background:#25D366;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,.3)}
+#parv-win{position:absolute;bottom:75px;right:0;width:380px;height:540px;background:#0B141A;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.4);transform:translateY(20px) scale(.95);opacity:0;pointer-events:none;transition:all .3s;border:1px solid #1F2C34}
+#parv-win.open{transform:none;opacity:1;pointer-events:all}
+#parv-head{background:#202C33;color:#E9EDEF;padding:12px;display:flex;align-items:center;gap:10px}
+#parv-head .lg{width:36px;height:36px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#8B1E1E;font-weight:800}
+#parv-msgs{flex:1;background:#0B141A;padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.parv-m{max-width:85%;padding:8px 10px;border-radius:8px;font-size:13.5px;line-height:1.4;box-shadow:0 1px 1px rgba(0,0,0,.2)}
+.parv-m.bot{background:#202C33;color:#E9EDEF;align-self:flex-start;border-top-left-radius:0}
+.parv-m.user{background:#005C4B;color:#E9EDEF;align-self:flex-end;border-top-right-radius:0}
+.parv-btns{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.parv-b{background:#1F2C33;border:1px solid #2A3942;color:#E9EDEF;padding:10px;border-radius:8px;cursor:pointer;text-align:left;display:flex;gap:8px}
+.parv-b:hover{background:#2A3942;border-color:#00A884}
+#parv-inp-area{background:#202C33;padding:8px;display:flex;gap:8px}
+#parv-inp{flex:1;background:#2A3942;border:none;border-radius:20px;padding:10px 14px;color:#fff;outline:none}
+#parv-send{width:42px;height:42px;border-radius:50%;background:#00A884;border:none;color:#fff;cursor:pointer}
+@media(max-width:480px){#parv-win{position:fixed;bottom:0;right:0;width:100vw;height:100vh;border-radius:0}}`;
+const style=document.createElement('style'); style.innerHTML=css; document.head.appendChild(style);
+
+function addMsg(container,text,isUser,buttons){
+  const d=document.createElement('div'); d.className='parv-m '+(isUser?'user':'bot');
+  let h=text.replace(/\n/g,'<br>');
+  if(buttons && buttons.length){
+    h+=`<div class="parv-btns">${buttons.map(b=>`<button class="parv-b" data-id="${b.id}"><span>${b.icon||'📄'}</span> ${b.label||b.id}</button>`).join('')}</div>`;
+  }
+  d.innerHTML=h;
+  container.appendChild(d);
+  container.scrollTop=container.scrollHeight;
+  d.querySelectorAll('.parv-b').forEach(btn=>{
+    btn.onclick=()=>{
+      const id=btn.getAttribute('data-id'); const label=btn.innerText;
+      addMsg(container,label,true);
+      callN8n(id,label);
+    };
+  });
+}
+
+async function callN8n(action,label){
+  const msgs=document.getElementById('parv-msgs');
+  const typing=document.createElement('div'); typing.style.color='#8696A0'; typing.style.fontSize='11px'; typing.innerText='Parv Industry is typing...'; msgs.appendChild(typing);
+  try{
+    const res=await fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chatInput:action,action:action,text:action,sessionId:getSid(),source:'website'})});
+    let data; const t=await res.text(); try{ data=JSON.parse(t);}catch{ data={output:t};}
+    typing.remove();
+    let botText=data.output||data.response||data.text||"Hello! 👋 Welcome to Parv Industry. We are happy to help you with spices, noodles, and 100% pure coconut water. Please choose an option to continue.";
+    let buttons=data.buttons||null;
+    if(!buttons && botText.toLowerCase().includes('welcome to parv')){
+      buttons=[{id:'catalogue',label:'Show Catalogue',icon:'📄'},{id:'price_list',label:'Show Product Price List',icon:'💰'}];
+    }
+    if(!buttons && botText.toLowerCase().includes('product category')){
+      buttons=[{id:'loose_spices',label:'Loose Spices',icon:'🌶️'},{id:'fancy_box',label:'Fancy Box',icon:'📦'},{id:'hanger',label:'Hanger',icon:'3️⃣'},{id:'noodles',label:'Noodles',icon:'🍜'},{id:'coconut_water',label:'Coconut Water',icon:'🥥'}];
+    }
+    if(!buttons && botText.toLowerCase().includes('review your enquiry')){
+      buttons=[{id:'confirm',label:'Confirm',icon:'✅'},{id:'edit',label:'Edit',icon:'✏️'}];
+    }
+    if(botText.toLowerCase().includes('representative will call') || botText.toLowerCase().includes('thank you')){
+      buttons=[{id:'main_menu',label:'Main Menu',icon:'🏠'}];
+    }
+    addMsg(msgs,botText,false,buttons);
+  }catch(e){
+    typing.remove();
+    addMsg(msgs,"Error connecting to n8n. Check webhook URL. Please try again.",false,[{id:'main_menu',label:'Main Menu'}]);
+    console.error(e);
+  }
+}
+
+function build(){
+  if(document.getElementById('parv-root')) return;
+  const root=document.createElement('div'); root.id='parv-root';
+  root.innerHTML=`<div id="parv-win"><div id="parv-head"><div class="lg">PI</div><div><div style="font-weight:600">Parv Industry</div><div style="font-size:10px;color:#8696A0">WhatsApp Product Enquiry</div></div><div style="margin-left:auto;cursor:pointer" id="parv-close">✕</div></div><div id="parv-msgs"></div><div id="parv-inp-area"><input id="parv-inp" placeholder="Type a message"/><button id="parv-send">➤</button></div></div><button id="parv-btn">💬</button>`;
+  document.body.appendChild(root);
+  const win=document.getElementById('parv-win'), btn=document.getElementById('parv-btn'), close=document.getElementById('parv-close'), inp=document.getElementById('parv-inp'), send=document.getElementById('parv-send'), msgs=document.getElementById('parv-msgs');
+  function toggle(o){ const open=o!==undefined?o:!win.classList.contains('open'); win.classList.toggle('open',open); if(open && msgs.children.length===0){ callN8n('Hi','Hi'); } }
+  btn.onclick=()=>toggle(); close.onclick=()=>toggle(false);
+  function doSend(){ const v=inp.value.trim(); if(!v) return; addMsg(msgs,v,true); inp.value=''; callN8n(v,v); }
+  send.onclick=doSend; inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); doSend(); } };
+  window.ParvChat={open:()=>toggle(true),close:()=>toggle(false)};
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',build); else build();
+})();
+</script>
+<!-- CHATBOT WIDGET END -->
+
 </body>
 </html>

@@ -1,5 +1,3 @@
-
-
 /* Parv Industry - WhatsApp Product Enquiry Chatbot Widget
    4-line embed code - WhatsApp UI on website connected to n8n
    SRS Flow: STEP1 Welcome -> STEP2 Catalogue/Price -> STEP3 Categories -> STEP4 Quantity -> STEP5 Summary -> STEP6 Confirm -> STEP7 Rep
@@ -292,4 +290,3 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 else buildUI();
 
 })();
-

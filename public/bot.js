@@ -79,9 +79,9 @@
     row.innerHTML = sender === 'bot'? `<div class="parv-msg-avatar">P</div><div class="parv-msg bot">${text.replace(/\n/g,'<br>')}</div>` : `<div class="parv-msg user">${text}</div>`;
     parvMessages.appendChild(row);
     parvMessages.scrollTop = parvMessages.scrollHeight;
-    return row;
   }
 
+  let selectedCategory = "";
   function renderCategoryMenu(buttons) {
     parvChips.innerHTML = "";
     buttons.forEach((item) => {
@@ -91,11 +91,20 @@
       btn.textContent = item.label;
       btn.addEventListener("click", () => {
         addMessage(item.label, "user");
+        if ([
+          "loose_spices",
+          "fancy_box",
+          "hanger",
+          "noodles",
+          "coconut_water"
+        ].includes(item.id)) {
+          selectedCategory = item.id;
+        }
         sendAction(item.id);
       });
       parvChips.appendChild(btn);
     });
-    // Category UP only - stays here
+    // Category UP only - move it to after the prompt message
     parvMessages.appendChild(parvChips);
     categoryMenuShown = true;
   }
@@ -107,7 +116,19 @@
       const btn = document.createElement('button');
       btn.className = 'parv-chip';
       btn.textContent = b.label;
-      btn.onclick = () => { addMessage(b.label, "user"); sendAction(b.id); };
+      btn.onclick = () => {
+        addMessage(b.label, "user");
+        if ([
+          "loose_spices",
+          "fancy_box",
+          "hanger",
+          "noodles",
+          "coconut_water"
+        ].includes(b.id)) {
+          selectedCategory = b.id;
+        }
+        sendAction(b.id);
+      };
       parvChips.appendChild(btn);
     });
     // Buttons BELOW welcome/message
@@ -141,14 +162,14 @@
       } else if (action === "show_categories") {
         renderCategoryMenu(result.buttons || []);
       } else {
-        // Category click -> output BELOW category only, category stays UP
+        // Customer selected any category -> output comes BELOW category only
+        // Do NOT re-render category, keep it UP only
       }
     } catch (e) {
       addMessage("Sorry, something went wrong. Please try again.", "bot");
     }
   }
 
-  // Initial chips - will be moved BELOW welcome when welcome comes
   ["🌶 Spices List", "🥥 Coconut Water", "🍜 Noodles", "📦 Bulk Quote"].forEach(text => {
     const chip = document.createElement('button');
     chip.className = 'parv-chip';
@@ -167,12 +188,17 @@
     typingRow.innerHTML=`<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div></div>`;
     parvMessages.appendChild(typingRow);
     try {
-      const res = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chatInput:text, message:text, payload:{text}, sessionId:SESSION_ID }) });
+      const res = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+        chatInput: text,
+        message: text,
+        payload: { text },
+        sessionId: SESSION_ID,
+        category: selectedCategory
+      }) });
       document.getElementById('parv-typing-row')?.remove();
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
       if (typeof result==='object'){
         addMessage(result.message||result.output||result.text||result,"bot");
-        // FIX: Show Catalogue / Price List BELOW welcome, not upward
         if(result.buttons?.length &&!categoryMenuShown) {
           renderButtonsBelowMessage(result.buttons);
         }

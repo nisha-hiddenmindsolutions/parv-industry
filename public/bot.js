@@ -170,6 +170,13 @@
         body: JSON.stringify({ action: action, sessionId: SESSION_ID })
       });
       const result = await response.json();
+      if (result.category && result.product && result.quantity) {
+        pendingEnquiry = {
+          category: result.category,
+          product: result.product,
+          quantity: result.quantity
+        };
+      }
 
       if (result.message) addMessage(result.message, "bot");
 

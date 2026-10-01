@@ -48,6 +48,8 @@
 
   const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
   const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
+  let pendingEnquiry = null;
+  let selectedCategory = "";
   let categoryMenuShown = false;
 
   const container = document.createElement('div');
@@ -81,7 +83,6 @@
     parvMessages.scrollTop = parvMessages.scrollHeight;
   }
 
-  let selectedCategory = "";
   function renderCategoryMenu(buttons) {
     parvChips.innerHTML = "";
     buttons.forEach((item) => {
@@ -91,20 +92,13 @@
       btn.textContent = item.label;
       btn.addEventListener("click", () => {
         addMessage(item.label, "user");
-        if ([
-          "loose_spices",
-          "fancy_box",
-          "hanger",
-          "noodles",
-          "coconut_water"
-        ].includes(item.id)) {
+        if (["loose_spices","fancy_box","hanger","noodles","coconut_water"].includes(item.id)) {
           selectedCategory = item.id;
         }
         sendAction(item.id);
       });
       parvChips.appendChild(btn);
     });
-    // Category UP only - move it to after the prompt message
     parvMessages.appendChild(parvChips);
     categoryMenuShown = true;
   }
@@ -118,20 +112,13 @@
       btn.textContent = b.label;
       btn.onclick = () => {
         addMessage(b.label, "user");
-        if ([
-          "loose_spices",
-          "fancy_box",
-          "hanger",
-          "noodles",
-          "coconut_water"
-        ].includes(b.id)) {
+        if (["loose_spices","fancy_box","hanger","noodles","coconut_water"].includes(b.id)) {
           selectedCategory = b.id;
         }
         sendAction(b.id);
       };
       parvChips.appendChild(btn);
     });
-    // Buttons BELOW welcome/message
     parvMessages.appendChild(parvChips);
   }
 
@@ -145,13 +132,7 @@
       btn.textContent = item.label;
       btn.addEventListener("click", () => {
         addMessage(item.label, "user");
-        if ([
-          "loose_spices",
-          "fancy_box",
-          "hanger",
-          "noodles",
-          "coconut_water"
-        ].includes(item.id)) {
+        if (["loose_spices","fancy_box","hanger","noodles","coconut_water"].includes(item.id)) {
           selectedCategory = item.id;
         }
         sendAction(item.id);
@@ -166,10 +147,21 @@
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: action, sessionId: SESSION_ID })
+        body: JSON.stringify({
+          action,
+          sessionId: SESSION_ID,
+         ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+        })
       });
       const result = await response.json();
       console.log("Edit response:", JSON.stringify(result, null, 2));
+      if (result.category && result.product && result.quantity) {
+        pendingEnquiry = {
+          category: result.category,
+          product: result.product,
+          quantity: result.quantity
+        };
+      }
 
       if (result.message) addMessage(result.message, "bot");
 
@@ -189,8 +181,10 @@
       } else if (action === "show_categories") {
         renderCategoryMenu(result.buttons || []);
       } else {
-        // Customer selected any category -> output comes BELOW category only
-        // Do NOT re-render category, keep it UP only
+        // FIX: render buttons for ALL actions like edit_enquiry, confirm, etc.
+        if (result.buttons && result.buttons.length > 0) {
+          renderButtons(result.buttons);
+        }
       }
     } catch (e) {
       addMessage("Sorry, something went wrong. Please try again.", "bot");
@@ -226,6 +220,13 @@
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
       if (typeof result==='object'){
         addMessage(result.message||result.output||result.text||result,"bot");
+        if (result.category && result.product && result.quantity) {
+          pendingEnquiry = {
+            category: result.category,
+            product: result.product,
+            quantity: result.quantity
+          };
+        }
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
         }

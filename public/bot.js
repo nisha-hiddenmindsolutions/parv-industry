@@ -152,20 +152,20 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-    ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+  ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
         })
       });
       const result = await response.json();
       if (action === "confirm_enquiry" && result.enquiryId) {
         pendingEnquiry = {
-         ...pendingEnquiry,
+        ...pendingEnquiry,
           enquiryId: result.enquiryId
         };
       }
       console.log("Edit response:", JSON.stringify(result, null, 2));
       if (result.category && result.product && result.quantity) {
         pendingEnquiry = {
-         ...pendingEnquiry,
+        ...pendingEnquiry,
           category: result.category,
           product: result.product,
           quantity: result.quantity
@@ -237,4 +237,42 @@
   async function sendMessage() {
     const text = inputEl.value.trim(); if (!text) return; inputEl.value=''; addMessage(text,"user");
     const typingRow = document.createElement('div'); typingRow.className='parv-msg-row'; typingRow.id='parv-typing-row';
-    typingRow.innerHTML=`<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div
+    typingRow.innerHTML=`<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div></div>`;
+    parvMessages.appendChild(typingRow);
+    try {
+      const res = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+        chatInput: text,
+        message: text,
+        payload: { text },
+        sessionId: SESSION_ID,
+        category: selectedCategory,
+        action: waitingForCustomerDetails
+        ? "customer_details"
+          : undefined,
+        enquiryId: currentEnquiryId,
+        enquiry: pendingEnquiry
+      }) });
+      document.getElementById('parv-typing-row')?.remove();
+      let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
+      if (typeof result==='object'){
+        addMessage(result.message||result.output||result.text||result,"bot");
+        if (result.category && result.product && result.quantity) {
+          pendingEnquiry = {
+          ...pendingEnquiry,
+            category: result.category,
+            product: result.product,
+            quantity: result.quantity
+          };
+        }
+        if (result.buttons && result.buttons.length > 0) {
+          renderButtons(result.buttons);
+        }
+        if(result.buttons?.length &&!categoryMenuShown) {
+          renderButtonsBelowMessage(result.buttons);
+        }
+      } else addMessage(result,"bot");
+    } catch(e){ document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong.","bot"); }
+  }
+  sendBtn.onclick=sendMessage; inputEl.onkeydown=(e)=>{ if(e.key==='Enter') sendMessage(); };
+  setTimeout(toggle,700);
+})();

@@ -49,6 +49,8 @@
   const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
   const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
   let pendingEnquiry = null;
+  let waitingForCustomerDetails = false;
+  let currentEnquiryId = null;
   let selectedCategory = "";
   let categoryMenuShown = false;
 
@@ -150,7 +152,7 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-        ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+     ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
         })
       });
       const result = await response.json();
@@ -165,7 +167,13 @@
 
       if (result.message) addMessage(result.message, "bot");
 
+      if (action === "confirm_enquiry" && result.enquiryId) {
+        currentEnquiryId = result.enquiryId;
+        console.log("Saved Enquiry ID:", currentEnquiryId);
+      }
+
       if (action === "confirm_enquiry") {
+        waitingForCustomerDetails = true;
         const res2 = await fetch(WEBHOOK_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -226,11 +234,14 @@
     parvMessages.appendChild(typingRow);
     try {
       const res = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+        action: waitingForCustomerDetails? "customer_details" : undefined,
         chatInput: text,
         message: text,
         payload: { text },
         sessionId: SESSION_ID,
-        category: selectedCategory
+        category: selectedCategory,
+        enquiry: pendingEnquiry,
+        enquiryId: currentEnquiryId
       }) });
       document.getElementById('parv-typing-row')?.remove();
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}

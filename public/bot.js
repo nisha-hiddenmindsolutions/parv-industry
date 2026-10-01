@@ -49,6 +49,7 @@
   const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
   const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
   let pendingEnquiry = null;
+  let waitingForCustomerDetails = false;
   let originalEnquiry = null;
   let selectedCategory = "";
   let categoryMenuShown = false;
@@ -153,7 +154,7 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-        ...(action === "confirm_enquiry"? { enquiry: originalEnquiry || pendingEnquiry } : {})
+       ...(action === "confirm_enquiry"? { enquiry: originalEnquiry || pendingEnquiry } : {})
         })
       });
       const result = await response.json();

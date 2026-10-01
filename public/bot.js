@@ -49,6 +49,7 @@
   const WEBHOOK_URL = 'https://n8n.propwiseai.in/webhook/website%20chatbot';
   const SESSION_ID = 'parv_' + Math.random().toString(36).slice(2,9);
   let pendingEnquiry = null;
+  let originalEnquiry = null;
   let selectedCategory = "";
   let categoryMenuShown = false;
   let awaitingCustomerDetails = false;
@@ -84,6 +85,7 @@
     parvMessages.scrollTop = parvMessages.scrollHeight;
   }
 
+  let selectedCategoryValue = selectedCategory;
   function renderCategoryMenu(buttons) {
     parvChips.innerHTML = "";
     buttons.forEach((item) => {
@@ -151,17 +153,18 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-         ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+        ...(action === "confirm_enquiry"? { enquiry: originalEnquiry || pendingEnquiry } : {})
         })
       });
       const result = await response.json();
       console.log("Edit response:", JSON.stringify(result, null, 2));
-      if (result.category && result.product && result.quantity) {
+      if (!awaitingCustomerDetails && result.category && result.product && result.quantity) {
         pendingEnquiry = {
           category: result.category,
           product: result.product,
           quantity: result.quantity
         };
+        originalEnquiry = {...pendingEnquiry};
       }
 
       if (result.message) addMessage(result.message, "bot");
@@ -185,7 +188,6 @@
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
         }
-        // After Confirm, next user message should go to customer_details route
         if (action === "confirm_enquiry") {
           awaitingCustomerDetails = true;
         }
@@ -215,22 +217,16 @@
     try {
       let requestBody;
       if (awaitingCustomerDetails) {
-        // Parse "nisha , udaipur sec 3 ,9867128712,12 oct 2026"
         const parts = text.split(",").map(p=>p.trim()).filter(p=>p);
         let name = "", address = "", mobile = "", requiredDate = "";
         if (parts.length >= 4) {
-          name = parts[0];
-          address = parts[1];
-          mobile = parts[2];
-          requiredDate = parts[3];
+          name = parts[0]; address = parts[1]; mobile = parts[2]; requiredDate = parts[3];
         } else {
           const mobileMatch = text.match(/\b\d{10}\b/);
           if (mobileMatch) mobile = mobileMatch[0];
-          const dateMatch = text.match(/\d{1,2}\s*(?:oct|nov|dec|jan|feb|mar|apr|may|jun|jul|aug|sep)\s*\d{4}/i) || text.match(/\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/i);
-          if (dateMatch) requiredDate = dateMatch[0];
-          // fallback: first part as name, second as address
-          if (!name && parts.length >= 1) name = parts[0];
-          if (!address && parts.length >= 2) address = parts[1];
+          if (!name && parts[0]) name = parts[0];
+          if (!address && parts[1]) address = parts[1];
+          if (parts[2]) requiredDate = parts[2];
         }
         requestBody = {
           action: "customer_details",
@@ -239,11 +235,8 @@
           message: text,
           payload: { text },
           category: selectedCategory,
-          enquiry: pendingEnquiry,
-          name: name,
-          mobile: mobile,
-          address: address,
-          requiredDate: requiredDate,
+          enquiry: originalEnquiry || pendingEnquiry,
+          name, mobile, address, requiredDate,
           customerDetails: { name, mobile, address, requiredDate }
         };
         awaitingCustomerDetails = false;
@@ -261,12 +254,13 @@
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
       if (typeof result==='object'){
         addMessage(result.message||result.output||result.text||result,"bot");
-        if (result.category && result.product && result.quantity) {
+        if (!awaitingCustomerDetails && result.category && result.product && result.quantity) {
           pendingEnquiry = {
             category: result.category,
             product: result.product,
             quantity: result.quantity
           };
+          if(!originalEnquiry) originalEnquiry = {...pendingEnquiry};
         }
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);

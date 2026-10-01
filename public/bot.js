@@ -51,6 +51,7 @@
   let pendingEnquiry = null;
   let selectedCategory = "";
   let categoryMenuShown = false;
+  let awaitingCustomerDetails = false;
 
   const container = document.createElement('div');
   container.id = 'parv-chat-widget-container';
@@ -181,9 +182,12 @@
       } else if (action === "show_categories") {
         renderCategoryMenu(result.buttons || []);
       } else {
-        // FIX: render buttons for ALL actions like edit_enquiry, confirm, etc.
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
+        }
+        // After Confirm, next user message should go to customer_details route
+        if (action === "confirm_enquiry") {
+          awaitingCustomerDetails = true;
         }
       }
     } catch (e) {
@@ -209,13 +213,50 @@
     typingRow.innerHTML=`<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div></div>`;
     parvMessages.appendChild(typingRow);
     try {
-      const res = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
-        chatInput: text,
-        message: text,
-        payload: { text },
-        sessionId: SESSION_ID,
-        category: selectedCategory
-      }) });
+      let requestBody;
+      if (awaitingCustomerDetails) {
+        // Parse "nisha , udaipur sec 3 ,9867128712,12 oct 2026"
+        const parts = text.split(",").map(p=>p.trim()).filter(p=>p);
+        let name = "", address = "", mobile = "", requiredDate = "";
+        if (parts.length >= 4) {
+          name = parts[0];
+          address = parts[1];
+          mobile = parts[2];
+          requiredDate = parts[3];
+        } else {
+          const mobileMatch = text.match(/\b\d{10}\b/);
+          if (mobileMatch) mobile = mobileMatch[0];
+          const dateMatch = text.match(/\d{1,2}\s*(?:oct|nov|dec|jan|feb|mar|apr|may|jun|jul|aug|sep)\s*\d{4}/i) || text.match(/\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/i);
+          if (dateMatch) requiredDate = dateMatch[0];
+          // fallback: first part as name, second as address
+          if (!name && parts.length >= 1) name = parts[0];
+          if (!address && parts.length >= 2) address = parts[1];
+        }
+        requestBody = {
+          action: "customer_details",
+          sessionId: SESSION_ID,
+          chatInput: text,
+          message: text,
+          payload: { text },
+          category: selectedCategory,
+          enquiry: pendingEnquiry,
+          name: name,
+          mobile: mobile,
+          address: address,
+          requiredDate: requiredDate,
+          customerDetails: { name, mobile, address, requiredDate }
+        };
+        awaitingCustomerDetails = false;
+      } else {
+        requestBody = {
+          chatInput: text,
+          message: text,
+          payload: { text },
+          sessionId: SESSION_ID,
+          category: selectedCategory
+        };
+      }
+      const res = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(requestBody) });
       document.getElementById('parv-typing-row')?.remove();
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
       if (typeof result==='object'){
@@ -232,6 +273,9 @@
         }
         if(result.buttons?.length &&!categoryMenuShown) {
           renderButtonsBelowMessage(result.buttons);
+        }
+        if (result.message && result.message.toLowerCase().includes("provide your full name")) {
+          awaitingCustomerDetails = true;
         }
       } else addMessage(result,"bot");
     } catch(e){ document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong.","bot"); }

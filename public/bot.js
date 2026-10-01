@@ -51,6 +51,14 @@
   let pendingEnquiry = null;
   let selectedCategory = "";
   let categoryMenuShown = false;
+  // NEW: Customer details storage
+  let customerDetails = {
+    name: "",
+    mobile: "",
+    address: "",
+    requiredDate: ""
+  };
+  let customerStep = ""; // to track what n8n is asking
 
   const container = document.createElement('div');
   container.id = 'parv-chat-widget-container';
@@ -150,7 +158,17 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-         ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+          enquiry: pendingEnquiry,
+          customer: customerDetails,
+        ...(action === "confirm_enquiry"
+          ? {
+               enquiry: {...pendingEnquiry,...customerDetails},
+               name: customerDetails.name,
+               mobile: customerDetails.mobile,
+               address: customerDetails.address,
+               requiredDate: customerDetails.requiredDate
+             }
+            : {})
         })
       });
       const result = await response.json();
@@ -162,6 +180,8 @@
           quantity: result.quantity
         };
       }
+      // Track what customer info n8n is asking for
+      if(result.ask) customerStep = result.ask;
 
       if (result.message) addMessage(result.message, "bot");
 
@@ -181,7 +201,6 @@
       } else if (action === "show_categories") {
         renderCategoryMenu(result.buttons || []);
       } else {
-        // FIX: render buttons for ALL actions like edit_enquiry, confirm, etc.
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
         }
@@ -204,7 +223,45 @@
   triggerEl.onclick = toggle; closeBtn.onclick = toggle;
 
   async function sendMessage() {
-    const text = inputEl.value.trim(); if (!text) return; inputEl.value=''; addMessage(text,"user");
+    const text = inputEl.value.trim(); if (!text) return;
+    // NEW: Save customer details based on what bot asked
+    const lowerText = text.toLowerCase();
+    if(customerStep === "name" || (!customerDetails.name && pendingEnquiry)) {
+      if(!customerDetails.name && text.length > 2 &&!/^\d+$/.test(text) && pendingEnquiry) {
+        // if bot asked for name, save it
+        if(customerStep === "name") customerDetails.name = text;
+      }
+    }
+    // Auto-detect mobile (10 digits)
+    const mobileMatch = text.match(/\b\d{10}\b/);
+    if(mobileMatch) customerDetails.mobile = mobileMatch[0];
+
+    // Auto-detect date (simple)
+    if(lowerText.includes("/") || lowerText.includes("-") && (lowerText.includes("202") || lowerText.match(/\d{1,2}[\/-]\d{1,2}/))) {
+      customerDetails.requiredDate = text;
+    }
+
+    // If we are in customer info flow, save accordingly
+    if(customerStep === "mobile" && /^\d{10}$/.test(text.replace(/\D/g,""))) {
+      customerDetails.mobile = text.replace(/\D/g,"");
+    } else if(customerStep === "address" && text.length > 10) {
+      customerDetails.address = text;
+    } else if(customerStep === "requiredDate" || customerStep === "date") {
+      customerDetails.requiredDate = text;
+    } else if(customerStep === "name" && text.length > 2) {
+      customerDetails.name = text;
+    } else {
+      // Fallback: if pendingEnquiry exists and we don't have name yet, treat first text after enquiry as name
+      if(pendingEnquiry &&!customerDetails.name && text.length > 2 &&!mobileMatch && text.length < 30) {
+        // will be confirmed by n8n ask flow
+      }
+      // If address not set and text is long, treat as address
+      if(pendingEnquiry && customerDetails.name && customerDetails.mobile &&!customerDetails.address && text.length > 15) {
+        customerDetails.address = text;
+      }
+    }
+
+    inputEl.value=''; addMessage(text,"user");
     const typingRow = document.createElement('div'); typingRow.className='parv-msg-row'; typingRow.id='parv-typing-row';
     typingRow.innerHTML=`<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div></div>`;
     parvMessages.appendChild(typingRow);
@@ -214,19 +271,33 @@
         message: text,
         payload: { text },
         sessionId: SESSION_ID,
-        category: selectedCategory
+        category: selectedCategory,
+        enquiry: pendingEnquiry,
+        customer: customerDetails,
+        name: customerDetails.name,
+        mobile: customerDetails.mobile,
+        address: customerDetails.address,
+        requiredDate: customerDetails.requiredDate
       }) });
       document.getElementById('parv-typing-row')?.remove();
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
       if (typeof result==='object'){
         addMessage(result.message||result.output||result.text||result,"bot");
-        if (result.category && result.product && result.quantity) {
+        if(result.ask) customerStep = result.ask;
+        // Also allow n8n to send ask field
+        if(result.category && result.product && result.quantity) {
           pendingEnquiry = {
             category: result.category,
             product: result.product,
             quantity: result.quantity
           };
         }
+        // If n8n returns customer info, save it
+        if(result.name) customerDetails.name = result.name;
+        if(result.mobile) customerDetails.mobile = result.mobile;
+        if(result.address) customerDetails.address = result.address;
+        if(result.requiredDate || result.date) customerDetails.requiredDate = result.requiredDate || result.date;
+
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
         }

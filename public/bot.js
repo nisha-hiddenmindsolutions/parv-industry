@@ -152,13 +152,20 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-    ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+   ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
         })
       });
       const result = await response.json();
+      if (action === "confirm_enquiry" && result.enquiryId) {
+        pendingEnquiry = {
+         ...pendingEnquiry,
+          enquiryId: result.enquiryId
+        };
+      }
       console.log("Edit response:", JSON.stringify(result, null, 2));
       if (result.category && result.product && result.quantity) {
         pendingEnquiry = {
+         ...pendingEnquiry,
           category: result.category,
           product: result.product,
           quantity: result.quantity
@@ -234,7 +241,7 @@
     parvMessages.appendChild(typingRow);
     try {
       console.log("Sending action:", waitingForCustomerDetails
-       ? "customer_details"
+      ? "customer_details"
         : "normal enquiry");
       const res = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
         action: waitingForCustomerDetails? "customer_details" : undefined,
@@ -244,6 +251,7 @@
         sessionId: SESSION_ID,
         category: selectedCategory,
         enquiry: pendingEnquiry,
+        enquiryId: pendingEnquiry?.enquiryId,
         enquiryId: currentEnquiryId
       }) });
       document.getElementById('parv-typing-row')?.remove();
@@ -252,6 +260,7 @@
         addMessage(result.message||result.output||result.text||result,"bot");
         if (result.category && result.product && result.quantity) {
           pendingEnquiry = {
+           ...pendingEnquiry,
             category: result.category,
             product: result.product,
             quantity: result.quantity

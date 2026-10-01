@@ -152,7 +152,7 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-     ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+    ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
         })
       });
       const result = await response.json();
@@ -233,6 +233,9 @@
     typingRow.innerHTML=`<div class="parv-msg-avatar">P</div><div class="parv-typing"><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div><div class="parv-dot-typing"></div></div>`;
     parvMessages.appendChild(typingRow);
     try {
+      console.log("Sending action:", waitingForCustomerDetails
+       ? "customer_details"
+        : "normal enquiry");
       const res = await fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
         action: waitingForCustomerDetails? "customer_details" : undefined,
         chatInput: text,

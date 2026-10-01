@@ -152,20 +152,20 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-  ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+ ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
         })
       });
       const result = await response.json();
       if (action === "confirm_enquiry" && result.enquiryId) {
         pendingEnquiry = {
-        ...pendingEnquiry,
+       ...pendingEnquiry,
           enquiryId: result.enquiryId
         };
       }
       console.log("Edit response:", JSON.stringify(result, null, 2));
       if (result.category && result.product && result.quantity) {
         pendingEnquiry = {
-        ...pendingEnquiry,
+       ...pendingEnquiry,
           category: result.category,
           product: result.product,
           quantity: result.quantity
@@ -247,7 +247,7 @@
         sessionId: SESSION_ID,
         category: selectedCategory,
         action: waitingForCustomerDetails
-        ? "customer_details"
+       ? "customer_details"
           : undefined,
         enquiryId: currentEnquiryId,
         enquiry: pendingEnquiry
@@ -256,9 +256,31 @@
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
       if (typeof result==='object'){
         addMessage(result.message||result.output||result.text||result,"bot");
+        if (waitingForCustomerDetails) {
+          const closingRes = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "closing_message",
+              sessionId: SESSION_ID
+            })
+          });
+
+          const closing = await closingRes.json();
+
+          if (closing.message) {
+            addMessage(closing.message, "bot");
+          }
+
+          if (closing.buttons?.length) {
+            renderButtons(closing.buttons);
+          }
+
+          waitingForCustomerDetails = false;
+        }
         if (result.category && result.product && result.quantity) {
           pendingEnquiry = {
-          ...pendingEnquiry,
+         ...pendingEnquiry,
             category: result.category,
             product: result.product,
             quantity: result.quantity

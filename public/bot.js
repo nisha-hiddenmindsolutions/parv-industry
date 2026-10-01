@@ -150,7 +150,7 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-         ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+        ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
         })
       });
       const result = await response.json();
@@ -164,6 +164,23 @@
       }
 
       if (result.message) addMessage(result.message, "bot");
+
+      if (action === "confirm_enquiry") {
+        const res2 = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "request_customer_details",
+            sessionId: SESSION_ID
+          })
+        });
+
+        const detailsResponse = await res2.json();
+
+        if (detailsResponse.message) {
+          addMessage(detailsResponse.message, "bot");
+        }
+      }
 
       if (result.type === "pdf" && result.document?.url) {
         const wrapper = document.createElement("div");
@@ -181,7 +198,6 @@
       } else if (action === "show_categories") {
         renderCategoryMenu(result.buttons || []);
       } else {
-        // FIX: render buttons for ALL actions like edit_enquiry, confirm, etc.
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
         }

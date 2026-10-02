@@ -42,6 +42,22 @@
 .parv-dot-typing { width: 6px; height: 6px; background: #111; border-radius: 50%; animation: parv-b 1.2s infinite; }
 .parv-dot-typing:nth-child(2){animation-delay:.15s}.parv-dot-typing:nth-child(3){animation-delay:.3s}
     @keyframes parv-b { 0%,80%,100%{transform:translateY(0);opacity:.5} 40%{transform:translateY(-5px);opacity:1} }
+    
+    /* NEW: Side by side grid for initial chips */
+    .parv-chips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+    .parv-chips-grid .parv-chip { text-align: center; justify-content: center; display: flex; align-items: center; gap: 6px; padding: 14px 10px!important; border-radius: 16px; font-size: 13px; }
+    .parv-hint-msg { background: #F6F3EE; border: 1px dashed rgba(0,0,0,0.12); color: #6B7280; padding: 10px 14px!important; border-radius: 12px; font-size: 12.5px; text-align: center; margin-top: 4px; }
+    
+    /* NEW: Mobile fix - prevent cut on top */
+    @media (max-width: 480px) {
+      #parv-chat-widget-container { bottom: 0; right: 0; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; display: block; }
+      .parv-window { position: fixed; left: 0; right: 0; top: 0; bottom: 0; width: 100vw; height: 100dvh; height: 100vh; max-width: 100vw; max-height: 100dvh; border-radius: 0; margin-bottom: 0; transform-origin: bottom center; }
+      .parv-window.open { transform: translateY(0) scale(1); }
+      .parv-trigger-wrap { position: fixed; bottom: 20px; right: 20px; pointer-events: auto; z-index: 10000000; }
+      .parv-window.open + .parv-trigger-wrap { opacity: 0; pointer-events: none; }
+      .parv-messages { padding: 16px!important; }
+      .parv-chips-grid { grid-template-columns: 1fr 1fr; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -85,15 +101,37 @@
   }
 
   function showStartingChips() {
-    parvChips.innerHTML = "";
-    ["🌶 Spices List", "🥥 Coconut Water", "🍜 Noodles", "📦 Bulk Quote"].forEach(text => {
+    // Clear
+    parvMessages.innerHTML = '';
+    // Create grid 2x2 side by side
+    const grid = document.createElement('div');
+    grid.className = 'parv-chips-grid';
+    const items = [
+      { icon: '🌶', label: 'Spices List', text: 'Spices List' },
+      { icon: '🥥', label: 'Coconut Water', text: 'Coconut Water' },
+      { icon: '🍜', label: 'Noodles', text: 'Noodles' },
+      { icon: '📦', label: 'Bulk Quote', text: 'Bulk Quote' }
+    ];
+    items.forEach(item => {
       const chip = document.createElement('button');
       chip.className = 'parv-chip';
-      chip.textContent = text;
-      chip.onclick = () => { inputEl.value = text; sendMessage(); };
-      parvChips.appendChild(chip);
+      chip.innerHTML = `${item.icon} ${item.label}`;
+      chip.onclick = () => { 
+        addMessage(item.text, "user");
+        inputEl.value = item.text; 
+        sendMessage(); 
+      };
+      grid.appendChild(chip);
     });
-    parvMessages.appendChild(parvChips);
+    parvMessages.appendChild(grid);
+    
+    // Hint message after list - so customer knows how to start
+    const hintRow = document.createElement('div');
+    hintRow.className = 'parv-msg-row';
+    hintRow.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-msg bot">👋 <b>Say Hi / Hello to start a chat</b><br>or tap any option above to explore products.</div>`;
+    parvMessages.appendChild(hintRow);
+    
+    parvMessages.scrollTop = parvMessages.scrollHeight;
   }
 
   function renderCategoryMenu(buttons) {
@@ -157,14 +195,12 @@
 
   async function sendAction(action) {
     try {
-      // MAIN MENU = NEW CHAT - clear everything like hi/hello
       if(action === "main_menu") {
         pendingEnquiry = null;
         currentEnquiryId = null;
         selectedCategory = "";
         waitingForCustomerDetails = false;
         categoryMenuShown = false;
-        // Clear chat and start fresh like first load
         parvMessages.innerHTML = '';
       }
       const response = await fetch(WEBHOOK_URL, {
@@ -211,12 +247,10 @@
         wrapper.appendChild(iframe);
         parvMessages.appendChild(wrapper);
       }
-      // FIXED: MAIN MENU should show welcome message from n8n, not custom chips
       if (action === "main_menu") {
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
         } else {
-          // fallback if n8n doesn't return buttons, trigger start
           const startRes = await fetch(WEBHOOK_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

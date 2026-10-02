@@ -43,18 +43,15 @@
 .parv-dot-typing:nth-child(2){animation-delay:.15s}.parv-dot-typing:nth-child(3){animation-delay:.3s}
     @keyframes parv-b { 0%,80%,100%{transform:translateY(0);opacity:.5} 40%{transform:translateY(-5px);opacity:1} }
     
-    /* NEW: Side by side grid for initial chips */
     .parv-chips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
     .parv-chips-grid .parv-chip { text-align: center; justify-content: center; display: flex; align-items: center; gap: 6px; padding: 14px 10px!important; border-radius: 16px; font-size: 13px; }
     .parv-hint-msg { background: #F6F3EE; border: 1px dashed rgba(0,0,0,0.12); color: #6B7280; padding: 10px 14px!important; border-radius: 12px; font-size: 12.5px; text-align: center; margin-top: 4px; }
     
-    /* NEW: Mobile fix - prevent cut on top */
     @media (max-width: 480px) {
-      #parv-chat-widget-container { bottom: 0; right: 0; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; display: block; }
+      #parv-chat-widget-container { bottom: 0; right: 0; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
       .parv-window { position: fixed; left: 0; right: 0; top: 0; bottom: 0; width: 100vw; height: 100dvh; height: 100vh; max-width: 100vw; max-height: 100dvh; border-radius: 0; margin-bottom: 0; transform-origin: bottom center; }
-      .parv-window.open { transform: translateY(0) scale(1); }
+      .parv-window.open { transform: translateY(0) scale(1); pointer-events: auto; }
       .parv-trigger-wrap { position: fixed; bottom: 20px; right: 20px; pointer-events: auto; z-index: 10000000; }
-      .parv-window.open + .parv-trigger-wrap { opacity: 0; pointer-events: none; }
       .parv-messages { padding: 16px!important; }
       .parv-chips-grid { grid-template-columns: 1fr 1fr; }
     }
@@ -101,9 +98,7 @@
   }
 
   function showStartingChips() {
-    // Clear
     parvMessages.innerHTML = '';
-    // Create grid 2x2 side by side
     const grid = document.createElement('div');
     grid.className = 'parv-chips-grid';
     const items = [
@@ -125,10 +120,10 @@
     });
     parvMessages.appendChild(grid);
     
-    // Hint message after list - so customer knows how to start
+    // FIXED: Only this text, not clickable, no second line
     const hintRow = document.createElement('div');
     hintRow.className = 'parv-msg-row';
-    hintRow.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-msg bot">👋 <b>Say Hi / Hello to start a chat</b><br>or tap any option above to explore products.</div>`;
+    hintRow.innerHTML = `<div class="parv-msg-avatar">P</div><div class="parv-msg bot">👋 Say Hi / Hello to start a chat</div>`;
     parvMessages.appendChild(hintRow);
     
     parvMessages.scrollTop = parvMessages.scrollHeight;
@@ -278,8 +273,25 @@
 
   showStartingChips();
   let isOpen = false;
-  function toggle() { isOpen=!isOpen; windowEl.classList.toggle('open', isOpen); triggerIcon.textContent=isOpen?'✕':'💬'; pulseEl.style.display=isOpen?'none':'block'; }
-  triggerEl.onclick = toggle; closeBtn.onclick = toggle;
+  function toggle() { 
+    isOpen=!isOpen; 
+    windowEl.classList.toggle('open', isOpen); 
+    triggerIcon.textContent=isOpen?'✕':'💬'; 
+    pulseEl.style.display=isOpen?'none':'block';
+    // FIXED: ensure trigger always clickable, don't hide with opacity
+    const triggerWrap = document.querySelector('.parv-trigger-wrap');
+    if (triggerWrap) {
+      if (isOpen) {
+        triggerWrap.style.opacity = '0';
+        triggerWrap.style.pointerEvents = 'none';
+      } else {
+        triggerWrap.style.opacity = '1';
+        triggerWrap.style.pointerEvents = 'auto';
+      }
+    }
+  }
+  triggerEl.onclick = toggle; 
+  closeBtn.onclick = toggle;
 
   async function sendMessage() {
     const text = inputEl.value.trim(); if (!text) return; inputEl.value=''; addMessage(text,"user");

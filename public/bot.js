@@ -85,6 +85,18 @@
     parvMessages.scrollTop = parvMessages.scrollHeight;
   }
 
+  function showStartingChips() {
+    parvChips.innerHTML = "";
+    ["🌶 Spices List", "🥥 Coconut Water", "🍜 Noodles", "📦 Bulk Quote"].forEach(text => {
+      const chip = document.createElement('button');
+      chip.className = 'parv-chip';
+      chip.textContent = text;
+      chip.onclick = () => { inputEl.value = text; sendMessage(); };
+      parvChips.appendChild(chip);
+    });
+    parvMessages.appendChild(parvChips);
+  }
+
   function renderCategoryMenu(buttons) {
     parvChips.innerHTML = "";
     buttons.forEach((item) => {
@@ -152,20 +164,20 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
- ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
         })
       });
       const result = await response.json();
       if (action === "confirm_enquiry" && result.enquiryId) {
         pendingEnquiry = {
-       ...pendingEnquiry,
+      ...pendingEnquiry,
           enquiryId: result.enquiryId
         };
       }
       console.log("Edit response:", JSON.stringify(result, null, 2));
       if (result.category && result.product && result.quantity) {
         pendingEnquiry = {
-       ...pendingEnquiry,
+      ...pendingEnquiry,
           category: result.category,
           product: result.product,
           quantity: result.quantity
@@ -222,13 +234,7 @@
     }
   }
 
-  ["🌶 Spices List", "🥥 Coconut Water", "🍜 Noodles", "📦 Bulk Quote"].forEach(text => {
-    const chip = document.createElement('button');
-    chip.className = 'parv-chip';
-    chip.textContent = text;
-    chip.onclick = () => { inputEl.value = text; sendMessage(); };
-    parvChips.appendChild(chip);
-  });
+  showStartingChips();
 
   let isOpen = false;
   function toggle() { isOpen=!isOpen; windowEl.classList.toggle('open', isOpen); triggerIcon.textContent=isOpen?'✕':'💬'; pulseEl.style.display=isOpen?'none':'block'; }
@@ -267,26 +273,38 @@
             });
             const menuData = await menuRes.json();
             if (menuData.message) addMessage(menuData.message, "bot");
-            if (menuData.buttons?.length) renderButtons(menuData.buttons);
+            if (menuData.buttons?.length) {
+              renderButtons(menuData.buttons);
+            } else {
+              // If main_menu has no buttons, show starting message type
+              addMessage("How can I help you today? Feel free to explore our products:", "bot");
+              showStartingChips();
+            }
           } catch (err) {
             console.log("main_menu fetch failed", err);
+            // Fallback to starting message type
+            addMessage("How can I help you today? Feel free to explore our products:", "bot");
+            showStartingChips();
           }
           waitingForCustomerDetails = false;
-        }
-
-        if (result.category && result.product && result.quantity) {
-          pendingEnquiry = {
-         ...pendingEnquiry,
-            category: result.category,
-            product: result.product,
-            quantity: result.quantity
-          };
-        }
-        if (result.buttons && result.buttons.length > 0) {
-          renderButtons(result.buttons);
-        }
-        if(result.buttons?.length &&!categoryMenuShown) {
-          renderButtonsBelowMessage(result.buttons);
+          pendingEnquiry = null;
+          currentEnquiryId = null;
+          selectedCategory = "";
+        } else {
+          if (result.category && result.product && result.quantity) {
+            pendingEnquiry = {
+          ...pendingEnquiry,
+              category: result.category,
+              product: result.product,
+              quantity: result.quantity
+            };
+          }
+          if (result.buttons && result.buttons.length > 0) {
+            renderButtons(result.buttons);
+          }
+          if(result.buttons?.length &&!categoryMenuShown) {
+            renderButtonsBelowMessage(result.buttons);
+          }
         }
       } else addMessage(result,"bot");
     } catch(e){ document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong.","bot"); }

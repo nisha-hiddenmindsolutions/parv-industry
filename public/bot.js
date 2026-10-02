@@ -157,12 +157,15 @@
 
   async function sendAction(action) {
     try {
+      // MAIN MENU = NEW CHAT - clear everything like hi/hello
       if(action === "main_menu") {
         pendingEnquiry = null;
         currentEnquiryId = null;
         selectedCategory = "";
         waitingForCustomerDetails = false;
         categoryMenuShown = false;
+        // Clear chat and start fresh like first load
+        parvMessages.innerHTML = '';
       }
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
@@ -170,7 +173,7 @@
         body: JSON.stringify({
           action,
           sessionId: SESSION_ID,
-...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
+          ...(action === "confirm_enquiry"? { enquiry: pendingEnquiry } : {})
         })
       });
       const result = await response.json();
@@ -208,6 +211,23 @@
         wrapper.appendChild(iframe);
         parvMessages.appendChild(wrapper);
       }
+      // FIXED: MAIN MENU should show welcome message from n8n, not custom chips
+      if (action === "main_menu") {
+        if (result.buttons && result.buttons.length > 0) {
+          renderButtons(result.buttons);
+        } else {
+          // fallback if n8n doesn't return buttons, trigger start
+          const startRes = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "start", sessionId: SESSION_ID, message: "hi" })
+          });
+          const startResult = await startRes.json();
+          if (startResult.message) addMessage(startResult.message, "bot");
+          if (startResult.buttons) renderButtons(startResult.buttons);
+        }
+        return;
+      }
       if (action === "price_list") {
         setTimeout(() => sendAction("show_categories"), 3000);
       } else if (action === "show_categories") {
@@ -216,9 +236,6 @@
         if (result.buttons && result.buttons.length > 0) {
           renderButtons(result.buttons);
         }
-      }
-      if(action === "main_menu") {
-        setTimeout(() => { addMessage("How can I help you today? Feel free to explore:", "bot"); showStartingChips(); }, 800);
       }
     } catch (e) {
       addMessage("Sorry, something went wrong. Please try again.", "bot");
@@ -243,8 +260,8 @@
         sessionId: SESSION_ID,
         category: selectedCategory,
         action: waitingForCustomerDetails ? "customer_details" : undefined,
-        enquiry: pendingEnquiry,
-        enquiryId: currentEnquiryId
+        enquiryId: currentEnquiryId,
+        enquiry: pendingEnquiry
       }) });
       document.getElementById('parv-typing-row')?.remove();
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}

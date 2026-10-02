@@ -45,10 +45,13 @@
     
     .parv-chips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
     .parv-chip-static { background: #fff; border: 1px solid rgba(0,0,0,0.08); color: #111; padding: 14px 10px!important; border-radius: 16px; font-size: 13px; font-weight: 500; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: default!important; }
+    /* FIX: Hide black bubble when chat is open, so it doesn't overlap send button */
+    .parv-window.open + .parv-trigger-wrap { opacity: 0!important; pointer-events: none!important; display: none!important; }
     
     @media (max-width: 480px) {
       .parv-window { position: fixed; left: 0; right: 0; bottom: 0; width: 100vw; height: 92dvh; height: 92vh; max-width: 100vw; max-height: 92dvh; border-radius: 24px 24px 0 0; margin-bottom: 0; }
       .parv-messages { padding: 18px!important; }
+      .parv-window.open + .parv-trigger-wrap { display: none!important; }
     }
   `;
   document.head.appendChild(style);

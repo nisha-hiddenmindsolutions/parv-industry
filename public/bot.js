@@ -3,7 +3,6 @@
     document.getElementById('parv-chat-widget-container').remove();
     document.getElementById('parv-chatbot-styles')?.remove();
   }
-
   const style = document.createElement('style');
   style.id = 'parv-chatbot-styles';
   style.textContent = `
@@ -158,6 +157,13 @@
 
   async function sendAction(action) {
     try {
+      if(action === "main_menu") {
+        pendingEnquiry = null;
+        currentEnquiryId = null;
+        selectedCategory = "";
+        waitingForCustomerDetails = false;
+        categoryMenuShown = false;
+      }
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -169,46 +175,25 @@
       });
       const result = await response.json();
       if (action === "confirm_enquiry" && result.enquiryId) {
-        pendingEnquiry = {
-      ...pendingEnquiry,
-          enquiryId: result.enquiryId
-        };
+        pendingEnquiry = {...pendingEnquiry, enquiryId: result.enquiryId};
       }
-      console.log("Edit response:", JSON.stringify(result, null, 2));
       if (result.category && result.product && result.quantity) {
-        pendingEnquiry = {
-      ...pendingEnquiry,
-          category: result.category,
-          product: result.product,
-          quantity: result.quantity
-        };
+        pendingEnquiry = {...pendingEnquiry, category: result.category, product: result.product, quantity: result.quantity};
       }
-
       if (result.message) addMessage(result.message, "bot");
-
       if (action === "confirm_enquiry" && result.enquiryId) {
         currentEnquiryId = result.enquiryId;
-        console.log("Saved Enquiry ID:", currentEnquiryId);
       }
-
       if (action === "confirm_enquiry") {
         waitingForCustomerDetails = true;
         const res2 = await fetch(WEBHOOK_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "request_customer_details",
-            sessionId: SESSION_ID
-          })
+          body: JSON.stringify({ action: "request_customer_details", sessionId: SESSION_ID })
         });
-
         const detailsResponse = await res2.json();
-
-        if (detailsResponse.message) {
-          addMessage(detailsResponse.message, "bot");
-        }
+        if (detailsResponse.message) addMessage(detailsResponse.message, "bot");
       }
-
       if (result.type === "pdf" && result.document?.url) {
         const wrapper = document.createElement("div");
         wrapper.style.cssText = "width:100%;padding:8px;box-sizing:border-box;";
@@ -219,7 +204,6 @@
         wrapper.appendChild(iframe);
         parvMessages.appendChild(wrapper);
       }
-
       if (action === "price_list") {
         setTimeout(() => sendAction("show_categories"), 3000);
       } else if (action === "show_categories") {
@@ -229,13 +213,15 @@
           renderButtons(result.buttons);
         }
       }
+      if(action === "main_menu") {
+        setTimeout(() => { addMessage("How can I help you today? Feel free to explore:", "bot"); showStartingChips(); }, 800);
+      }
     } catch (e) {
       addMessage("Sorry, something went wrong. Please try again.", "bot");
     }
   }
 
   showStartingChips();
-
   let isOpen = false;
   function toggle() { isOpen=!isOpen; windowEl.classList.toggle('open', isOpen); triggerIcon.textContent=isOpen?'✕':'💬'; pulseEl.style.display=isOpen?'none':'block'; }
   triggerEl.onclick = toggle; closeBtn.onclick = toggle;
@@ -261,30 +247,10 @@
       if (typeof result === 'object'){
         if (result.message) addMessage(result.message, "bot");
 
+        // ONLY CHANGE HERE - no extra main_menu fetch, because after sharing detail msg already returns Main Menu button together
         if (waitingForCustomerDetails) {
-          try {
-            const menuRes = await fetch(WEBHOOK_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "main_menu",
-                sessionId: SESSION_ID
-              })
-            });
-            const menuData = await menuRes.json();
-            if (menuData.message) addMessage(menuData.message, "bot");
-            if (menuData.buttons?.length) {
-              renderButtons(menuData.buttons);
-            } else {
-              // If main_menu has no buttons, show starting message type
-              addMessage("How can I help you today? Feel free to explore our products:", "bot");
-              showStartingChips();
-            }
-          } catch (err) {
-            console.log("main_menu fetch failed", err);
-            // Fallback to starting message type
-            addMessage("How can I help you today? Feel free to explore our products:", "bot");
-            showStartingChips();
+          if (result.buttons && result.buttons.length > 0) {
+            renderButtons(result.buttons);
           }
           waitingForCustomerDetails = false;
           pendingEnquiry = null;
@@ -292,19 +258,10 @@
           selectedCategory = "";
         } else {
           if (result.category && result.product && result.quantity) {
-            pendingEnquiry = {
-          ...pendingEnquiry,
-              category: result.category,
-              product: result.product,
-              quantity: result.quantity
-            };
+            pendingEnquiry = {...pendingEnquiry, category: result.category, product: result.product, quantity: result.quantity};
           }
-          if (result.buttons && result.buttons.length > 0) {
-            renderButtons(result.buttons);
-          }
-          if(result.buttons?.length &&!categoryMenuShown) {
-            renderButtonsBelowMessage(result.buttons);
-          }
+          if (result.buttons && result.buttons.length > 0) renderButtons(result.buttons);
+          if(result.buttons?.length &&!categoryMenuShown) renderButtonsBelowMessage(result.buttons);
         }
       } else addMessage(result,"bot");
     } catch(e){ document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong.","bot"); }

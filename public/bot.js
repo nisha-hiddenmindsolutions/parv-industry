@@ -189,7 +189,11 @@
         const res2 = await fetch(WEBHOOK_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "request_customer_details", sessionId: SESSION_ID })
+          body: JSON.stringify({
+            action: "request_customer_details",
+            sessionId: SESSION_ID,
+            enquiryId: currentEnquiryId
+          })
         });
         const detailsResponse = await res2.json();
         if (detailsResponse.message) addMessage(detailsResponse.message, "bot");
@@ -238,16 +242,14 @@
         payload: { text },
         sessionId: SESSION_ID,
         category: selectedCategory,
-        action: waitingForCustomerDetails? "customer_details" : undefined,
-        enquiryId: currentEnquiryId,
-        enquiry: pendingEnquiry
+        action: waitingForCustomerDetails ? "customer_details" : undefined,
+        enquiry: pendingEnquiry,
+        enquiryId: currentEnquiryId
       }) });
       document.getElementById('parv-typing-row')?.remove();
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
       if (typeof result === 'object'){
         if (result.message) addMessage(result.message, "bot");
-
-        // ONLY CHANGE HERE - no extra main_menu fetch, because after sharing detail msg already returns Main Menu button together
         if (waitingForCustomerDetails) {
           if (result.buttons && result.buttons.length > 0) {
             renderButtons(result.buttons);

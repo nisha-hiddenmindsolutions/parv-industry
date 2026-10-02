@@ -47,7 +47,8 @@
     .parv-chip-static { background: #fff; border: 1px solid rgba(0,0,0,0.08); color: #111; padding: 14px 10px!important; border-radius: 16px; font-size: 13px; font-weight: 500; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: default!important; }
     
     @media (max-width: 480px) {
-      .parv-window { position: fixed; left: 12px; right: 12px; bottom: 80px; top: auto; width: auto; height: 72dvh; max-width: none; max-height: 75dvh; }
+      .parv-window { position: fixed; left: 0; right: 0; bottom: 0; width: 100vw; height: 92dvh; height: 92vh; max-width: 100vw; max-height: 92dvh; border-radius: 24px 24px 0 0; margin-bottom: 0; }
+      .parv-messages { padding: 18px!important; }
     }
   `;
   document.head.appendChild(style);

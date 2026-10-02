@@ -246,38 +246,34 @@
         payload: { text },
         sessionId: SESSION_ID,
         category: selectedCategory,
-        action: waitingForCustomerDetails
-       ? "customer_details"
-          : undefined,
+        action: waitingForCustomerDetails? "customer_details" : undefined,
         enquiryId: currentEnquiryId,
         enquiry: pendingEnquiry
       }) });
       document.getElementById('parv-typing-row')?.remove();
       let result = await res.text(); try{ const d=JSON.parse(result); result=Array.isArray(d)?d[0]:d; }catch{}
-      if (typeof result==='object'){
-        addMessage(result.message||result.output||result.text||result,"bot");
+      if (typeof result === 'object'){
+        if (result.message) addMessage(result.message, "bot");
+
         if (waitingForCustomerDetails) {
-          const closingRes = await fetch(WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "closing_message",
-              sessionId: SESSION_ID
-            })
-          });
-
-          const closing = await closingRes.json();
-
-          if (closing.message) {
-            addMessage(closing.message, "bot");
+          try {
+            const menuRes = await fetch(WEBHOOK_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "main_menu",
+                sessionId: SESSION_ID
+              })
+            });
+            const menuData = await menuRes.json();
+            if (menuData.message) addMessage(menuData.message, "bot");
+            if (menuData.buttons?.length) renderButtons(menuData.buttons);
+          } catch (err) {
+            console.log("main_menu fetch failed", err);
           }
-
-          if (closing.buttons?.length) {
-            renderButtons(closing.buttons);
-          }
-
           waitingForCustomerDetails = false;
         }
+
         if (result.category && result.product && result.quantity) {
           pendingEnquiry = {
          ...pendingEnquiry,

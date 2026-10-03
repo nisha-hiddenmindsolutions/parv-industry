@@ -42,11 +42,9 @@
 .parv-dot-typing { width: 6px; height: 6px; background: #111; border-radius: 50%; animation: parv-b 1.2s infinite; }
 .parv-dot-typing:nth-child(2){animation-delay:.15s}.parv-dot-typing:nth-child(3){animation-delay:.3s}
     @keyframes parv-b { 0%,80%,100%{transform:translateY(0);opacity:.5} 40%{transform:translateY(-5px);opacity:1} }
-    
     .parv-chips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
     .parv-chip-static { background: #fff; border: 1px solid rgba(0,0,0,0.08); color: #111; padding: 14px 10px!important; border-radius: 16px; font-size: 13px; font-weight: 500; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: default!important; }
     .parv-window.open + .parv-trigger-wrap { opacity: 0!important; pointer-events: none!important; display: none!important; }
-    
     @media (max-width: 480px) {
       .parv-window { position: fixed; left: 0; right: 0; bottom: 0; width: 100vw; height: 92dvh; height: 92vh; max-width: 100vw; max-height: 92dvh; border-radius: 24px 24px 0 0; margin-bottom: 0; }
       .parv-messages { padding: 18px!important; }
@@ -117,10 +115,25 @@
     parvMessages.scrollTop = parvMessages.scrollHeight;
   }
 
+  function dedupeButtons(buttons) {
+    if (!Array.isArray(buttons)) return [];
+    const seen = new Set();
+    const unique = [];
+    buttons.forEach(b => {
+      const key = (b.id + '|' + b.label).toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(b);
+      }
+    });
+    return unique;
+  }
+
   function renderCategoryMenu(buttons) {
+    const uniq = dedupeButtons(buttons);
     const chipsWrap = document.createElement('div');
     chipsWrap.className = 'parv-chips';
-    buttons.forEach((item) => {
+    uniq.forEach((item) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "parv-chip";
@@ -140,10 +153,11 @@
   }
 
   function renderButtons(buttons) {
-    if (!Array.isArray(buttons) || buttons.length === 0) return;
+    const uniq = dedupeButtons(buttons);
+    if (uniq.length === 0) return;
     const chipsWrap = document.createElement('div');
     chipsWrap.className = 'parv-chips';
-    buttons.forEach((item) => {
+    uniq.forEach((item) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "parv-chip";
@@ -287,7 +301,6 @@
           if (result.category && result.product && result.quantity) {
             pendingEnquiry = {...pendingEnquiry, category: result.category, product: result.product, quantity: result.quantity};
           }
-          // FIXED: Only render once, removed duplicate renderButtonsBelowMessage call
           if (result.buttons && result.buttons.length > 0) {
             renderButtons(result.buttons);
           }

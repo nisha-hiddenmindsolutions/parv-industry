@@ -8,12 +8,12 @@
   style.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Outfit:wght@400;500;600&display=swap');
     #parv-chat-widget-container, #parv-chat-widget-container * { box-sizing: border-box!important; font-family: 'Outfit', sans-serif; margin: 0; padding: 0; }
-    #parv-chat-widget-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999999; display: flex; flex-direction: column; align-items: flex-end; }
-.parv-trigger-wrap { position: relative; }
+    #parv-chat-widget-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999999; display: flex; flex-direction: column; align-items: flex-end; pointer-events: none; }
+.parv-trigger-wrap { position: relative; pointer-events: auto; z-index: 10000001; }
 .parv-trigger-pulse { position: absolute; inset: 0; border-radius: 50%; background: #111; animation: parv-pulse 2.5s infinite; }
     @keyframes parv-pulse { 0% { transform: scale(1); opacity:.3 } 100% { transform: scale(1.9); opacity: 0 } }
-.parv-trigger { width: 62px; height: 62px; border-radius: 50%; background: radial-gradient(120% 120% at 30% 20%, #2A2A2A 0%, #111 100%); color: #fff; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 12px 28px rgba(0,0,0,0.22); cursor: pointer; display: grid; place-items: center; }
-.parv-window { width: 392px; max-width: calc(100vw - 32px); height: 640px; max-height: calc(100vh - 100px); background: #FFFEFB; border: 1px solid rgba(0,0,0,0.08); border-radius: 28px; box-shadow: 0 24px 64px rgba(0,0,0,0.16); display: flex; flex-direction: column; overflow: hidden; margin-bottom: 18px; opacity: 0; transform: translateY(16px) scale(0.97); pointer-events: none; transition: all 0.48s cubic-bezier(0.16,1,0.3,1); transform-origin: bottom right; }
+.parv-trigger { width: 62px; height: 62px; border-radius: 50%; background: radial-gradient(120% 120% at 30% 20%, #2A2A2A 0%, #111 100%); color: #fff; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 12px 28px rgba(0,0,0,0.22); cursor: pointer; display: grid; place-items: center; pointer-events: auto; }
+.parv-window { width: 392px; max-width: calc(100vw - 32px); height: 640px; max-height: calc(100vh - 100px); background: #FFFEFB; border: 1px solid rgba(0,0,0,0.08); border-radius: 28px; box-shadow: 0 24px 64px rgba(0,0,0,0.16); display: flex; flex-direction: column; overflow: hidden; margin-bottom: 18px; opacity: 0; transform: translateY(16px) scale(0.97); pointer-events: none; transition: all 0.48s cubic-bezier(0.16,1,0.3,1); transform-origin: bottom right; z-index: 10000000; }
 .parv-window.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 .parv-header { padding: 16px 24px!important; background: #FFFEFB; border-bottom: 1px solid rgba(0,0,0,0.07); display: flex; align-items: center; justify-content: space-between; }
 .parv-header-left { display: flex; align-items: center; gap: 12px; }
@@ -45,13 +45,12 @@
     
     .parv-chips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
     .parv-chip-static { background: #fff; border: 1px solid rgba(0,0,0,0.08); color: #111; padding: 14px 10px!important; border-radius: 16px; font-size: 13px; font-weight: 500; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: default!important; pointer-events: none!important; }
-    .parv-chip-static:hover { background: #fff!important; color: #111!important; transform: none!important; }
     
     @media (max-width: 480px) {
       #parv-chat-widget-container { bottom: 0; right: 0; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
       .parv-window { position: fixed; left: 0; right: 0; top: 0; bottom: 0; width: 100vw; height: 100dvh; height: 100vh; max-width: 100vw; max-height: 100dvh; border-radius: 0; margin-bottom: 0; transform-origin: bottom center; }
       .parv-window.open { transform: translateY(0) scale(1); pointer-events: auto; }
-      .parv-trigger-wrap { position: fixed; bottom: 20px; right: 20px; pointer-events: auto; z-index: 10000000; }
+      .parv-trigger-wrap { position: fixed; bottom: 20px; right: 20px; pointer-events: auto; z-index: 10000001; }
       .parv-messages { padding: 16px!important; }
     }
   `;
@@ -73,12 +72,13 @@
       <div class="parv-messages" id="parvMessages"></div>
       <div class="parv-input-area"><div class="parv-input-wrap"><input type="text" class="parv-input" id="parvInput" placeholder="Ask about spices, bulk orders..." autocomplete="off" /><button class="parv-send-btn" id="parvSendBtn">➤</button></div><div class="parv-foot">Built for business • <strong>Parv Industries</strong></div></div>
     </div>
-    <div class="parv-trigger-wrap"><div class="parv-trigger-pulse" id="parvPulse"></div><button class="parv-trigger" id="parvTrigger"><span class="parv-trigger-icon" id="parvTriggerIcon">💬</span></button></div>
+    <div class="parv-trigger-wrap" id="parvTriggerWrap"><div class="parv-trigger-pulse" id="parvPulse"></div><button class="parv-trigger" id="parvTrigger"><span class="parv-trigger-icon" id="parvTriggerIcon">💬</span></button></div>
   `;
   document.body.appendChild(container);
 
   const windowEl = document.getElementById('parvWindow');
   const triggerEl = document.getElementById('parvTrigger');
+  const triggerWrap = document.getElementById('parvTriggerWrap');
   const triggerIcon = document.getElementById('parvTriggerIcon');
   const pulseEl = document.getElementById('parvPulse');
   const closeBtn = document.getElementById('parvCloseBtn');
@@ -274,11 +274,23 @@
   function toggle() { 
     isOpen=!isOpen; 
     windowEl.classList.toggle('open', isOpen); 
-    triggerIcon.textContent=isOpen?'✕':'💬'; 
-    pulseEl.style.display=isOpen?'none':'block';
+    if (triggerIcon) triggerIcon.textContent=isOpen?'✕':'💬'; 
+    if (pulseEl) pulseEl.style.display=isOpen?'none':'block';
+    if (triggerWrap) {
+      triggerWrap.style.display = isOpen ? 'none' : 'flex';
+    }
   }
-  triggerEl.onclick = toggle; 
-  closeBtn.onclick = toggle;
+  function openBot() { if (!isOpen) toggle(); }
+  function closeBot() { if (isOpen) toggle(); }
+
+  if (triggerEl) triggerEl.addEventListener('click', function(e){ e.stopPropagation(); toggle(); });
+  if (triggerWrap) triggerWrap.addEventListener('click', function(e){ 
+    if (e.target === triggerWrap) { e.stopPropagation(); toggle(); }
+  });
+  if (closeBtn) closeBtn.addEventListener('click', function(e){ e.stopPropagation(); closeBot(); });
+
+  // Auto open once after load like before
+  setTimeout(function(){ if (!isOpen) toggle(); }, 700);
 
   async function sendMessage() {
     const text = inputEl.value.trim(); if (!text) return; inputEl.value=''; addMessage(text,"user");
@@ -319,5 +331,4 @@
     } catch(e){ document.getElementById('parv-typing-row')?.remove(); addMessage("Sorry, something went wrong.","bot"); }
   }
   sendBtn.onclick=sendMessage; inputEl.onkeydown=(e)=>{ if(e.key==='Enter') sendMessage(); };
-  setTimeout(toggle,700);
 })();
